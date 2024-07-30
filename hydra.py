@@ -3,6 +3,7 @@ from tkinter import filedialog, messagebox, ttk
 import vlc
 import os
 import json
+import random
 
 class MediaPlayer:
 
@@ -23,6 +24,7 @@ class MediaPlayer:
         self.toggle_dark_mode = ttk.Checkbutton(settings_frame, text="Dark Mode", variable=self.dark_mode, command=self.toggle_theme)
         self.toggle_dark_mode.grid(row=0, column=1)
 
+        # Create Playlist
         self.playlist = tk.Listbox(self.window, width = 100)
         self.playlist.pack(pady=10)
 
@@ -52,7 +54,7 @@ class MediaPlayer:
         self.stop_button.grid(row=0, column=3, padx=10)
 
         self.volume_slider = tk.Scale(controls_frame, from_=0, to=100, orient=tk.HORIZONTAL, label='Volume', command=self.set_volume)
-        self.volume_slider.set(70)
+        self.volume_slider.set(80)
         self.volume_slider.grid(row=0, column=4, padx=10)
 
         # Create playlist controls
@@ -67,6 +69,26 @@ class MediaPlayer:
 
         self.load_button = ttk.Button(controls_frame, text="Load Playlist", command=self.load_playlist)
         self.load_button.grid(row=1, column=3, pady=10)
+
+        # Create media settings
+        media_settings_frame = ttk.Frame(self.window)
+        media_settings_frame.pack()
+
+        self.shuffle = tk.BooleanVar(media_settings_frame, False)
+        self.shuffle_button = ttk.Checkbutton(media_settings_frame, text="Shuffle", variable=self.shuffle, command=self.toggle_shuffle)
+        self.shuffle_button.grid(row=0, column=0)
+
+        self.repeat_one = tk.BooleanVar(media_settings_frame, False)
+        self.repeat_one_button = ttk.Checkbutton(media_settings_frame, text="Repeat One", variable=self.repeat_one, command=self.toggle_repeat_one)
+        self.repeat_one_button.grid(row=0, column=1)
+
+        self.repeat_all = tk.BooleanVar(media_settings_frame, False)
+        self.repeat_all_button = ttk.Checkbutton(media_settings_frame, text="Repeat All", variable=self.repeat_all, command=self.toggle_repeat_one)
+        self.repeat_all_button.grid(row=0, column=2)
+
+        self.fullscreen = tk.BooleanVar(media_settings_frame, False)
+        self.fullscreen_button = ttk.Checkbutton(media_settings_frame, text="Fullscreen", variable=self.fullscreen, command=self.toggle_fullscreen)
+        self.fullscreen_button.grid(row=0, column=3)
 
         # Create the vlc player instance
         self.player = vlc.Instance()
@@ -98,6 +120,8 @@ class MediaPlayer:
             self.media_player.play()
             self.track_label.config(text=os.path.basename(selected_song))
             self.window.after(500, self.update_progress_bar)
+            if selected_song.endswith((".mp4",".avi", ".mkv", ".mov")): # Set fullscreen for video
+                self.media_player.video_set_fullscreen(self.fullscreen)
         except IndexError:
             messagebox.showerror("Error", "No song selected")
         except Exception as e:
@@ -144,13 +168,25 @@ class MediaPlayer:
         try:
             self.stop()
             current_index = self.playlist.curselection()[0]
-            next_index = (current_index + 1) % self.playlist.size()
+            if self.shuffle.get():
+                next_index = random.randint(0, self.playlist.size() - 1)
+            elif self.repeat_one.get():
+                next_index = current_index
+            else:
+                next_index = (current_index + 1) % self.playlist.size()
             self.playlist.selection_clear(0, tk.END)
             self.playlist.activate(next_index)
             self.playlist.selection_set(next_index)
             self.play()
         except IndexError:
             self.stop()
+            if self.repeat_all.get():
+                self.playlist.selection_clear(0, tk.END)
+                self.playlist.activate(0)
+                self.playlist.selection_set(0)
+                self.play()
+            else:
+                self.track_label.config(text="End of Playlist")
             #messagebox.showinfo("End of Playlist", "No more songs in the playlist.")
         except Exception as e:
             print(f"Error in next_song: {e}")
@@ -187,7 +223,7 @@ class MediaPlayer:
     def add_to_playlist(self):
         file_paths = filedialog.askopenfilenames(defaultextension=".*", filetypes=[("All Files", "*.*")])
 
-        if not file_paths:
+        if not file_paths: # Add folder as playlist
             folder_path = filedialog.askdirectory()
             if folder_path:
                 for root, dirs, files in os.walk(folder_path):
@@ -232,7 +268,25 @@ class MediaPlayer:
             json.dump(playlist, f)
         self.window.destroy()
 
-    # Settings Methods
+    # Media Settings Methods
+    def toggle_shuffle(self):
+        print("Shuffle:", self.shuffle.get())
+
+    def toggle_repeat_one(self):
+        if self.repeat_one.get():
+            self.repeat_all.set(False)
+        print("Repeat One:", self.repeat_one.get())
+
+    def toggle_repeat_all(self):
+        if self.repeat_all.get():
+            self.repeat_one.set(False)
+        print("Repeat all:", self.repeat_all.get())
+
+    def toggle_fullscreen(self):
+        self.media_player.video_set_fullscreen(self.fullscreen.get())
+        print("Fullscreen:", self.fullscreen.get())
+
+    # App Settings Methods
     def toggle_always_on_top(self):
         self.window.attributes('-topmost', self.always_on_top.get())
 
