@@ -11,6 +11,18 @@ class MediaPlayer:
         self.window.title("Hydra Media Player")
         self.window.geometry("640x480")
 
+        # Create settings controls
+        settings_frame = ttk.Frame(self.window)
+        settings_frame.pack()
+
+        self.always_on_top = tk.BooleanVar(settings_frame, False)
+        self.always_on_top_button = ttk.Checkbutton(settings_frame, text="Toggle Always on Top", variable=self.always_on_top, command=self.toggle_always_on_top)
+        self.always_on_top_button.grid(row=0, column=0)
+
+        self.dark_mode = tk.BooleanVar(settings_frame, False)
+        self.toggle_dark_mode = ttk.Checkbutton(settings_frame, text="Dark Mode", variable=self.dark_mode, command=self.toggle_theme)
+        self.toggle_dark_mode.grid(row=0, column=1)
+
         self.playlist = tk.Listbox(self.window, width = 100)
         self.playlist.pack(pady=10)
 
@@ -64,7 +76,18 @@ class MediaPlayer:
         end_event = vlc.EventType.MediaPlayerEndReached
         self.media_player.event_manager().event_attach(end_event, self.song_finished)
 
-    
+        # Bind close event to window close
+        self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+        # Open last playlist automatically
+        if os.path.exists("last_playlist.json"):
+            with open("last_playlist.json", 'r') as f:
+                playlist = json.load(f)
+            for song in playlist:
+                self.playlist.insert(tk.END, song)
+
+        # Initialize theme
+        self.toggle_theme()
 
     # Control Methods
     def play(self):
@@ -102,7 +125,7 @@ class MediaPlayer:
     def stop(self):
         self.media_player.stop()
         self.play_pause_button.config(text="Play")
-        self.update_progress_bar()
+        self.progress['value']=0;
 
 
     def previous_song(self):
@@ -128,7 +151,7 @@ class MediaPlayer:
             self.play()
         except IndexError:
             self.stop()
-            messagebox.showinfo("End of Playlist", "No more songs in the playlist.")
+            #messagebox.showinfo("End of Playlist", "No more songs in the playlist.")
         except Exception as e:
             print(f"Error in next_song: {e}")
             self.stop()
@@ -169,7 +192,7 @@ class MediaPlayer:
             if folder_path:
                 for root, dirs, files in os.walk(folder_path):
                     for file in files:
-                        if file.endswith((".mp3", ".wav", ".mp4", ".avi", ".mkv")):  # Add more extensions as needed
+                        if file.endswith((".mp3", ".wav", ".mp4", ".avi", ".mkv", ".flac", ".mov", ".wmv", ".ogg", ".m4a", ".m4v")):
                             self.playlist.insert(tk.END, os.path.join(root, file))
         else:
             for file_path in file_paths:
@@ -202,6 +225,31 @@ class MediaPlayer:
             for song in playlist:
                 self.playlist.insert(tk.END, song)
             messagebox.showinfo("Success", "Playlist loaded successfully")
+
+    def on_closing(self):
+        playlist = self.playlist.get(0, tk.END)
+        with open("last_playlist.json", 'w') as f:
+            json.dump(playlist, f)
+        self.window.destroy()
+
+    # Settings Methods
+    def toggle_always_on_top(self):
+        self.window.attributes('-topmost', self.always_on_top.get())
+
+    def toggle_theme(self):
+        self.style = ttk.Style()
+        #self.style.theme_use('clam')  # Ensure the theme supports custom styling for buttons
+        if self.dark_mode.get():
+            self.window.configure(bg='#2E2E2E')  # Dark grey background for the root window
+            self.style.configure('TLabel', background='#2E2E2E', foreground='white')
+            self.style.configure('TCheckbutton', background='#2E2E2E', foreground='white')
+            self.playlist.configure(bg='#4D4D4D', fg='white', selectbackground='#6E6E6E', selectforeground='white')
+        else:
+            self.window.configure(bg='#f7f7f7')  # Light background for the root window
+            self.style.configure('TLabel', background='white', foreground='black')
+            self.style.configure('TCheckbutton', background='white', foreground='black')
+            self.playlist.configure(bg='white', fg='black', selectbackground='#D3D3D3', selectforeground='black')
+
 
 
 if __name__ == "__main__":
