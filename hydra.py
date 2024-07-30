@@ -12,6 +12,13 @@ class MediaPlayer:
         self.window.title("Hydra Media Player")
         self.window.geometry("640x480")
 
+        # Bind keyboard shortcuts
+        self.window.bind("<space>", self.toggle_play_pause)
+        self.window.bind("<Left>", self.previous_song)
+        self.window.bind("<Right>", self.next_song)
+        self.window.bind("<Up>", self.increase_volume)
+        self.window.bind("<Down>", self.decrease_volume)
+
         # Create settings controls
         settings_frame = ttk.Frame(self.window)
         settings_frame.pack()
@@ -31,6 +38,10 @@ class MediaPlayer:
         # Add track label
         self.track_label = ttk.Label(self.window, text="No track playing", relief=tk.SUNKEN)
         self.track_label.pack(fill=tk.X, pady=5)
+
+        # Add time label
+        self.time_label = ttk.Label(self.window, text="00:00 / 00:00")
+        self.time_label.pack(pady=5)
 
         # Add progress bar
         self.progress = ttk.Progressbar(self.window, orient=tk.HORIZONTAL, length=600, mode='determinate')
@@ -115,6 +126,10 @@ class MediaPlayer:
     def play(self):
         try:
             selected_song = self.playlist.get(tk.ACTIVE)
+            if not selected_song:
+                raise IndexError("No song selected")
+            if not os.path.exists(selected_song):
+                raise FileNotFoundError(f"File not found: {selected_song}")
             media = self.player.media_new(selected_song)
             self.media_player.set_media(media)
             self.media_player.play()
@@ -122,10 +137,12 @@ class MediaPlayer:
             self.window.after(500, self.update_progress_bar)
             if selected_song.endswith((".mp4",".avi", ".mkv", ".mov")): # Set fullscreen for video
                 self.media_player.video_set_fullscreen(self.fullscreen)
-        except IndexError:
-            messagebox.showerror("Error", "No song selected")
+        except IndexError as e:
+            messagebox.showerror("Error", str(e))
+        except FileNotFoundError as e:
+            messagebox.showerror("Error", str(e))
         except Exception as e:
-            messagebox.showerror("Error", f"An error occurred: {e}")
+            messagebox.showerror("Error", f"An unexpected error occurred: {e}")
 
 
     def pause(self):
@@ -200,6 +217,19 @@ class MediaPlayer:
     def set_volume(self, volume):
         self.media_player.audio_set_volume(int(volume))
 
+    
+    def increase_volume(self, event=None):
+        current_volume = self.volume_slider.get()
+        new_volume = min(100, current_volume + 5)
+        self.volume_slider.set(new_volume)
+        self.set_volume(new_volume)
+
+    def decrease_volume(self, event=None):
+        current_volume = self.volume_slider.get()
+        new_volume = max(0, current_volume - 5)
+        self.volume_slider.set(new_volume)
+        self.set_volume(new_volume)
+
 
     # Progress Bar Methods
     def seek(self, event):
@@ -215,8 +245,18 @@ class MediaPlayer:
         current_time = self.media_player.get_time() / 1000  # Current time in seconds
         self.progress['maximum'] = length
         self.progress['value'] = current_time
+        
+        # Update time label
+        current_time_str = self.format_time(current_time)
+        total_time_str = self.format_time(length)
+        self.time_label.config(text=f"{current_time_str} / {total_time_str}")
+        
         if self.media_player.is_playing():
-            self.window.after(500, self.update_progress_bar)  # Update every second
+            self.window.after(100, self.update_progress_bar)  # Update every interval
+
+    def format_time(self, seconds):
+        minutes, seconds = divmod(int(seconds), 60)
+        return f"{minutes:02d}:{seconds:02d}"
 
 
     # Playlist Methods
@@ -292,17 +332,30 @@ class MediaPlayer:
 
     def toggle_theme(self):
         self.style = ttk.Style()
-        #self.style.theme_use('clam')  # Ensure the theme supports custom styling for buttons
         if self.dark_mode.get():
-            self.window.configure(bg='#2E2E2E')  # Dark grey background for the root window
-            self.style.configure('TLabel', background='#2E2E2E', foreground='white')
-            self.style.configure('TCheckbutton', background='#2E2E2E', foreground='white')
+            self.style.theme_use('clam')
+            self.window.configure(bg='#2E2E2E')
+            self.style.configure('.', background='#2E2E2E', foreground='white')
+            self.style.configure('TButton', background='#4D4D4D', foreground='white')
+            self.style.map('TButton', background=[('active', '#6E6E6E')])
+            self.style.configure('TFrame', background='#2E2E2E')
             self.playlist.configure(bg='#4D4D4D', fg='white', selectbackground='#6E6E6E', selectforeground='white')
+            self.volume_slider.configure(bg='#2E2E2E', fg='white', troughcolor='#4D4D4D')
+            self.style.map('TCheckbutton',
+                       background=[('active', '#4D4D4D')],
+                       foreground=[('active', 'white')])
         else:
-            self.window.configure(bg='#f7f7f7')  # Light background for the root window
-            self.style.configure('TLabel', background='white', foreground='black')
-            self.style.configure('TCheckbutton', background='white', foreground='black')
+            self.style.theme_use('default')
+            self.window.configure(bg='#f7f7f7')
+            self.style.configure('.', background='white', foreground='black')
+            self.style.configure('TButton', background='#e1e1e1', foreground='black')
+            self.style.map('TButton', background=[('active', '#d1d1d1')])
+            self.style.configure('TFrame', background='#f7f7f7')
             self.playlist.configure(bg='white', fg='black', selectbackground='#D3D3D3', selectforeground='black')
+            self.volume_slider.configure(bg='#f7f7f7', fg='black', troughcolor='#e1e1e1')
+            self.style.map('TCheckbutton',
+                       background=[('active', '#e1e1e1')],
+                       foreground=[('active', 'black')])
 
 
 
