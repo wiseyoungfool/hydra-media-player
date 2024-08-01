@@ -5,6 +5,10 @@ import os
 import json
 import random
 
+SUPPORTED_EXTENSIONS = (".mp3", ".wav", ".mp4", ".avi", ".mkv", ".flac", ".mov", ".wmv", ".ogg", ".m4a", ".m4v")
+DEFAULT_VOLUME = 100
+PROGRESS_UPDATE_INTERVAL = 100  # milliseconds
+
 class MediaPlayer:
 
     def __init__(self, window):
@@ -18,6 +22,10 @@ class MediaPlayer:
         self.window.bind("<Right>", self.next_song)
         self.window.bind("<Up>", self.increase_volume)
         self.window.bind("<Down>", self.decrease_volume)
+        self.window.bind("<Control-o>", self.add_to_playlist)
+        self.window.bind("<Delete>", self.remove_song)
+        self.window.bind("<Control-s>", self.save_playlist)
+        self.window.bind("<Control-l>", self.load_playlist)
 
         # Create settings controls
         settings_frame = ttk.Frame(self.window)
@@ -65,7 +73,7 @@ class MediaPlayer:
         self.stop_button.grid(row=0, column=3, padx=10)
 
         self.volume_slider = tk.Scale(controls_frame, from_=0, to=100, orient=tk.HORIZONTAL, label='Volume', command=self.set_volume)
-        self.volume_slider.set(80)
+        self.volume_slider.set(DEFAULT_VOLUME)
         self.volume_slider.grid(row=0, column=4, padx=10)
 
         # Create playlist controls
@@ -134,7 +142,7 @@ class MediaPlayer:
             self.media_player.set_media(media)
             self.media_player.play()
             self.track_label.config(text=os.path.basename(selected_song))
-            self.window.after(500, self.update_progress_bar)
+            self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
             if selected_song.endswith((".mp4",".avi", ".mkv", ".mov")): # Set fullscreen for video
                 self.media_player.video_set_fullscreen(self.fullscreen)
         except IndexError as e:
@@ -147,7 +155,7 @@ class MediaPlayer:
 
     def pause(self):
         self.media_player.pause()
-        self.window.after(500, self.update_progress_bar)
+        self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
 
 
     def toggle_play_pause(self):
@@ -160,7 +168,7 @@ class MediaPlayer:
             else:
                 self.play()
             self.play_pause_button.config(text="Pause")
-            self.window.after(500, self.update_progress_bar)
+            self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
 
 
     def stop(self):
@@ -252,7 +260,7 @@ class MediaPlayer:
         self.time_label.config(text=f"{current_time_str} / {total_time_str}")
         
         if self.media_player.is_playing():
-            self.window.after(100, self.update_progress_bar)  # Update every interval
+            self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)  # Update every interval
 
     def format_time(self, seconds):
         minutes, seconds = divmod(int(seconds), 60)
@@ -268,7 +276,7 @@ class MediaPlayer:
             if folder_path:
                 for root, dirs, files in os.walk(folder_path):
                     for file in files:
-                        if file.endswith((".mp3", ".wav", ".mp4", ".avi", ".mkv", ".flac", ".mov", ".wmv", ".ogg", ".m4a", ".m4v")):
+                        if file.endswith(SUPPORTED_EXTENSIONS):
                             self.playlist.insert(tk.END, os.path.join(root, file))
         else:
             for file_path in file_paths:
