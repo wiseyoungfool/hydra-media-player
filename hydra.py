@@ -4,6 +4,7 @@ import vlc
 import os
 import json
 import random
+import time
 
 SUPPORTED_EXTENSIONS = (".mp3", ".wav", ".mp4", ".avi", ".mkv", ".flac", ".mov", ".wmv", ".ogg", ".m4a", ".m4v")
 DEFAULT_VOLUME = 100
@@ -120,12 +121,9 @@ class MediaPlayer:
         # Bind close event to window close
         self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
 
-        # Open last playlist automatically
-        if os.path.exists("last_playlist.json"):
-            with open("last_playlist.json", 'r') as f:
-                playlist = json.load(f)
-            for song in playlist:
-                self.playlist.insert(tk.END, song)
+        # Load Last playlist
+        self.current_file = None
+        self.load_last_playlist()
 
         # Initialize theme
         self.toggle_theme()
@@ -134,6 +132,8 @@ class MediaPlayer:
     def play(self):
         try:
             selected_song = self.playlist.get(tk.ACTIVE)
+            self.playlist.activate(tk.ACTIVE)
+            self.playlist.selection_set(tk.ACTIVE)
             if not selected_song:
                 raise IndexError("No song selected")
             if not os.path.exists(selected_song):
@@ -145,6 +145,7 @@ class MediaPlayer:
             self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
             if selected_song.endswith((".mp4",".avi", ".mkv", ".mov")): # Set fullscreen for video
                 self.media_player.video_set_fullscreen(self.fullscreen)
+            self.current_file = selected_song
         except IndexError as e:
             messagebox.showerror("Error", str(e))
         except FileNotFoundError as e:
@@ -156,21 +157,25 @@ class MediaPlayer:
     def pause(self):
         self.media_player.pause()
         self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
+        self.save_current_playlist()
 
 
     def toggle_play_pause(self):
         if self.media_player.is_playing():
             self.pause()
-            self.play_pause_button.config(text="Play")
         else:
             if self.media_player.get_time()>0:
                 self.pause()
             else:
                 self.play()
-            self.play_pause_button.config(text="Pause")
             self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
 
-
+    def update_play_pause_button(self):
+        if self.media_player.is_playing():
+            self.play_pause_button.config(text="Pause")
+        else:
+            self.play_pause_button.config(text="Play")
+    
     def stop(self):
         self.media_player.stop()
         self.play_pause_button.config(text="Play")
@@ -203,6 +208,7 @@ class MediaPlayer:
             self.playlist.activate(next_index)
             self.playlist.selection_set(next_index)
             self.play()
+            self.window.after(PROGRESS_UPDATE_INTERVAL,self.update_play_pause_button)
         except IndexError:
             self.stop()
             if self.repeat_all.get():
@@ -258,6 +264,8 @@ class MediaPlayer:
         current_time_str = self.format_time(current_time)
         total_time_str = self.format_time(length)
         self.time_label.config(text=f"{current_time_str} / {total_time_str}")
+
+        self.update_play_pause_button()
         
         if self.media_player.is_playing():
             self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)  # Update every interval
@@ -311,10 +319,69 @@ class MediaPlayer:
             messagebox.showinfo("Success", "Playlist loaded successfully")
 
     def on_closing(self):
-        playlist = self.playlist.get(0, tk.END)
-        with open("last_playlist.json", 'w') as f:
-            json.dump(playlist, f)
+        self.save_current_playlist()
         self.window.destroy()
+
+    def save_current_playlist(self):
+        last_playlist = {
+            "playlist": list(self.playlist.get(0, tk.END)),
+            "file": self.current_file,
+            "index": self.playlist.curselection()[0],
+            "position": self.media_player.get_time() if self.current_file else 0
+        }
+        try:
+            with open("last_playlist.json", 'w') as f:
+                json.dump(last_playlist, f)
+                print("Current Playlist saved.")
+        except IOError as e:
+            print(f"Error saving playlist: {e}")
+
+        
+    def load_last_playlist(self):
+        if os.path.exists("last_playlist.json"):
+            try:
+                with open("last_playlist.json", 'r') as f:
+                    saved_data = json.load(f)
+                
+                # Load playlist
+                self.playlist.delete(0, tk.END)
+                for song in saved_data.get("playlist", []):
+                    self.playlist.insert(tk.END, song)
+                
+                # Load last played file and position
+                self.current_file = saved_data.get("file")
+                if self.current_file and os.path.exists(self.current_file):
+                    media = self.player.media_new(self.current_file)
+                    self.media_player.set_media(media)
+                    position = saved_data.get("position", 0)
+                    self.media_player.set_time(int(position))
+                    index = saved_data.get("index")
+                    self.playlist.selection_clear(0, tk.END)
+                    if index is not None:
+                        self.playlist.activate(index)
+                        self.playlist.selection_set(index)
+                        
+
+                    # Start playing, then immediately pause to get around vlc's timelag weirdness when loading last position...
+                    volume = self.media_player.audio_get_volume()
+                    self.set_volume(0) # mute volume so you don't hear the song playing (has to play in order to set the time...)
+                    self.toggle_play_pause() # play the song
+                    self.media_player.set_time(int(position)) #set the position to the saved position
+                    self.update_progress_bar()
+                    time.sleep(.5) # sleep for half a second to allow vlc to load and process, otherwise it just resets the time counter
+                    self.toggle_play_pause() # pause again
+                    self.set_volume(volume)
+                    self.media_player.set_time(int(position)) # reset volume and position back to what they were
+
+                    # Update UI
+                    self.track_label.config(text=os.path.basename(self.current_file))
+
+                else:
+                    print("Last played file not found or no file was playing")
+
+            except (json.JSONDecodeError, IOError) as e:
+                print(f"Error loading playlist: {e}")
+    
 
     # Media Settings Methods
     def toggle_shuffle(self):
