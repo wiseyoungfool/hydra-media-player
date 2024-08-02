@@ -17,16 +17,18 @@ class MediaPlayer:
         self.window.title("Hydra Media Player")
         self.window.geometry("640x480")
 
+        self.can_save_interval = True
+
         # Bind keyboard shortcuts
-        self.window.bind("<space>", self.toggle_play_pause)
-        self.window.bind("<Left>", self.previous_song)
-        self.window.bind("<Right>", self.next_song)
-        self.window.bind("<Up>", self.increase_volume)
-        self.window.bind("<Down>", self.decrease_volume)
-        self.window.bind("<Control-o>", self.add_to_playlist)
-        self.window.bind("<Delete>", self.remove_song)
-        self.window.bind("<Control-s>", self.save_playlist)
-        self.window.bind("<Control-l>", self.load_playlist)
+        self.window.bind_all("<space>", self.toggle_play_pause)
+        self.window.bind_all("<Left>", self.previous_song)
+        self.window.bind_all("<Right>", self.next_song)
+        self.window.bind_all("<Shift-Up>", self.increase_volume)
+        self.window.bind_all("<Shift-Down>", self.decrease_volume)
+        self.window.bind_all("<Control-o>", self.add_to_playlist)
+        self.window.bind_all("<Delete>", self.remove_song)
+        self.window.bind_all("<Control-s>", self.save_playlist)
+        self.window.bind_all("<Control-l>", self.load_playlist)
 
         # Create settings controls
         settings_frame = ttk.Frame(self.window)
@@ -146,6 +148,7 @@ class MediaPlayer:
             if selected_song.endswith((".mp4",".avi", ".mkv", ".mov")): # Set fullscreen for video
                 self.media_player.video_set_fullscreen(self.fullscreen)
             self.current_file = selected_song
+            self.next_button.config(state='enabled')
         except IndexError as e:
             messagebox.showerror("Error", str(e))
         except FileNotFoundError as e:
@@ -160,7 +163,7 @@ class MediaPlayer:
         self.save_current_playlist()
 
 
-    def toggle_play_pause(self):
+    def toggle_play_pause(self, event=None):
         if self.media_player.is_playing():
             self.pause()
         else:
@@ -182,10 +185,12 @@ class MediaPlayer:
         self.progress['value']=0;
 
 
-    def previous_song(self):
+    def previous_song(self, event=None):
         try:
             current_index = self.playlist.curselection()[0]
-            previous_index = (current_index - 1) % self.playlist.size()
+            previous_index = current_index - 1
+            if previous_index < 0:
+                previous_index = 0
             self.playlist.selection_clear(0, tk.END)
             self.playlist.activate(previous_index)
             self.playlist.selection_set(previous_index)
@@ -196,33 +201,40 @@ class MediaPlayer:
 
     def next_song(self, event=None):
         try:
-            self.stop()
             current_index = self.playlist.curselection()[0]
+            next_index = None
+
             if self.shuffle.get():
                 next_index = random.randint(0, self.playlist.size() - 1)
             elif self.repeat_one.get():
                 next_index = current_index
             else:
-                next_index = (current_index + 1) % self.playlist.size()
-            self.playlist.selection_clear(0, tk.END)
-            self.playlist.activate(next_index)
-            self.playlist.selection_set(next_index)
-            self.play()
-            self.window.after(PROGRESS_UPDATE_INTERVAL,self.update_play_pause_button)
+                next_index = current_index + 1
+                if next_index >= self.playlist.size():
+                    if self.repeat_all.get():
+                        next_index = 0
+                    else:
+                        raise IndexError("End of playlist")
+
+            if next_index is not None:
+                self.playlist.selection_clear(0, tk.END)
+                self.playlist.activate(next_index)
+                self.playlist.selection_set(next_index)
+                self.stop()
+                self.play()
+                self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_play_pause_button)
+            else:
+                raise IndexError("No next song available")
+
         except IndexError:
             self.stop()
-            if self.repeat_all.get():
-                self.playlist.selection_clear(0, tk.END)
-                self.playlist.activate(0)
-                self.playlist.selection_set(0)
-                self.play()
-            else:
-                self.track_label.config(text="End of Playlist")
-            #messagebox.showinfo("End of Playlist", "No more songs in the playlist.")
+            self.track_label.config(text="End of Playlist")
+            # Optionally, you could disable the next button here
+            self.next_button.config(state='disabled')
+
         except Exception as e:
             print(f"Error in next_song: {e}")
             self.stop()
-
 
     def song_finished(self, event):
         self.window.after(0,self.next_song) # call next_song on tkinter's main thread to prevent crashes
@@ -253,6 +265,8 @@ class MediaPlayer:
         self.media_player.set_time(int(new_time * 1000))  # Set new time in milliseconds
         self.update_progress_bar()  # Update the progress bar
 
+    def reset_interval(self):
+        self.can_save_interval = True
 
     def update_progress_bar(self):
         length = self.media_player.get_length() / 1000  # Length in seconds
@@ -266,7 +280,13 @@ class MediaPlayer:
         self.time_label.config(text=f"{current_time_str} / {total_time_str}")
 
         self.update_play_pause_button()
-        
+        if round(current_time) % 10 == 0:
+            if self.can_save_interval:
+                self.save_current_playlist()
+                self.can_save_interval = False;
+                self.window.after(2000, self.reset_interval)
+            #self.window.after(1000,self.save_current_playlist)
+
         if self.media_player.is_playing():
             self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)  # Update every interval
 
@@ -332,7 +352,7 @@ class MediaPlayer:
         try:
             with open("last_playlist.json", 'w') as f:
                 json.dump(last_playlist, f)
-                print("Current Playlist saved.")
+                print(f"Current Playlist saved.")
         except IOError as e:
             print(f"Error saving playlist: {e}")
 
