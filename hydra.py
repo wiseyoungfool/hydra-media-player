@@ -15,23 +15,12 @@ class MediaPlayer:
     def __init__(self, window):
         self.window = window
         self.window.title("Hydra Media Player")
-        self.window.geometry("640x480")
+        self.window.geometry("640x640")
 
         # Boolean Vars
         self.can_save_interval = True
         self.show_playlist = tk.BooleanVar(value=True)
         self.current_file = None
-
-        # Bind keyboard shortcuts
-        self.window.bind_all("<space>", self.toggle_play_pause)
-        self.window.bind_all("<Left>", self.previous_song)
-        self.window.bind_all("<Right>", self.next_song)
-        self.window.bind_all("<Shift-Up>", self.increase_volume)
-        self.window.bind_all("<Shift-Down>", self.decrease_volume)
-        self.window.bind_all("<Control-o>", self.add_to_playlist)
-        self.window.bind_all("<Delete>", self.remove_song)
-        self.window.bind_all("<Control-s>", self.save_playlist)
-        self.window.bind_all("<Control-l>", self.load_playlist)
 
         # Create settings controls
         settings_frame = ttk.Frame(self.window)
@@ -45,11 +34,25 @@ class MediaPlayer:
         self.toggle_dark_mode = ttk.Checkbutton(settings_frame, text="Dark Mode", variable=self.dark_mode, command=self.toggle_theme)
         self.toggle_dark_mode.grid(row=0, column=1)
 
+        # Create a notebook (tabbed interface)
+        self.notebook = ttk.Notebook(self.window)
+        self.notebook.pack(expand=True, fill='both')
+
+        # Create frames for playlist and video
+        self.playlist_frame = ttk.Frame(self.notebook)
+        self.video_frame = ttk.Frame(self.notebook)
+
+        # Add frames to notebook
+        self.notebook.add(self.playlist_frame, text='Playlist')
+        self.notebook.add(self.video_frame, text='Video')
+
         # Create Playlist
-        #self.playlist_frame = ttk.Frame(self.window)
-        #self.playlist_frame.pack(side="right", fill="y")
-        self.playlist = tk.Listbox(self.window, width = 100)
-        self.playlist.pack(pady=10)
+        self.playlist = tk.Listbox(self.playlist_frame, width=100)
+        self.playlist.pack(pady=10, expand=True, fill='both')
+
+        # Create video canvas
+        self.video_canvas = tk.Canvas(self.video_frame, bg='black')
+        self.video_canvas.pack(expand=True, fill='both')
 
         # Add track label
         self.track_label = ttk.Label(self.window, text="No track playing", relief=tk.SUNKEN)
@@ -120,12 +123,14 @@ class MediaPlayer:
         # Create the vlc player instance
         self.player = vlc.Instance()
         self.media_player = self.player.media_player_new()
+        self.media_player.set_hwnd(self.video_canvas.winfo_id())
 
         # Set the end event
         end_event = vlc.EventType.MediaPlayerEndReached
         self.media_player.event_manager().event_attach(end_event, self.song_finished)
 
-        # Bind close event to window close
+        # Bind events
+        self.create_event_bindings()
         self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         # Load Last playlist
@@ -152,8 +157,13 @@ class MediaPlayer:
             self.media_player.play()
             self.track_label.config(text=os.path.basename(selected_song))
             self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
-            #if selected_song.endswith((".mp4",".avi", ".mkv", ".mov")): # Set fullscreen for video
-            #    self.media_player.video_set_fullscreen(self.fullscreen)
+
+            # Go to video frame if playing video
+            if selected_song.endswith((".mp4", ".avi", ".mkv", ".mov")):
+                self.notebook.select(self.video_frame)
+            else:
+                self.notebook.select(self.playlist_frame)
+
             self.current_file = selected_song
             self.next_button.config(state='enabled')
         except IndexError as e:
@@ -163,12 +173,10 @@ class MediaPlayer:
         except Exception as e:
             messagebox.showerror("Error", f"An unexpected error occurred: {e}")
 
-
     def pause(self):
         self.media_player.pause()
         self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
         self.save_current_playlist()
-
 
     def toggle_play_pause(self, event=None):
         if self.media_player.is_playing():
@@ -191,7 +199,6 @@ class MediaPlayer:
         self.play_pause_button.config(text="Play")
         self.progress['value']=0;
 
-
     def previous_song(self, event=None):
         try:
             current_index = self.playlist.curselection()[0]
@@ -205,7 +212,6 @@ class MediaPlayer:
         except IndexError:
             messagebox.showerror("Error", "No more songs in the playlist.")
             
-
     def next_song(self, event=None):
         try:
             current_index = self.playlist.curselection()[0]
@@ -246,11 +252,9 @@ class MediaPlayer:
     def song_finished(self, event):
         self.window.after(0,self.next_song) # call next_song on tkinter's main thread to prevent crashes
     
-
     def set_volume(self, volume):
         self.media_player.audio_set_volume(int(volume))
 
-    
     def increase_volume(self, event=None):
         current_volume = self.volume_slider.get()
         new_volume = min(100, current_volume + 5)
@@ -263,6 +267,17 @@ class MediaPlayer:
         self.volume_slider.set(new_volume)
         self.set_volume(new_volume)
 
+    def create_event_bindings(self):
+        # Bind keyboard shortcuts
+        self.window.bind_all("<space>", self.toggle_play_pause)
+        self.window.bind_all("<Left>", self.previous_song)
+        self.window.bind_all("<Right>", self.next_song)
+        self.window.bind_all("<Shift-Up>", self.increase_volume)
+        self.window.bind_all("<Shift-Down>", self.decrease_volume)
+        self.window.bind_all("<Control-o>", self.add_to_playlist)
+        self.window.bind_all("<Delete>", self.remove_song)
+        self.window.bind_all("<Control-s>", self.save_playlist)
+        self.window.bind_all("<Control-l>", self.load_playlist)
 
     # Progress Bar Methods
     def seek(self, event):
@@ -317,11 +332,9 @@ class MediaPlayer:
             for file_path in file_paths:
                 self.playlist.insert(tk.END, file_path)
 
-
     def remove_song(self):
         selected_index = self.playlist.curselection()[0]
         self.playlist.delete(selected_index)
-
 
     def save_playlist(self):
         playlist = self.playlist.get(0, tk.END)
@@ -333,7 +346,6 @@ class MediaPlayer:
                 messagebox.showinfo("Success", "Playlist saved successfully")
         else:
             messagebox.showerror("Error", "No songs in the playlist")
-
 
     def load_playlist(self):
         file_path = filedialog.askopenfilename(defaultextension=".json", filetypes=[("JSON Files", "*.json")])
@@ -372,8 +384,7 @@ class MediaPlayer:
                 print(f"Current Playlist saved.")
         except IOError as e:
             print(f"Error saving playlist: {e}")
-
-        
+     
     def load_last_playlist(self):
         if os.path.exists("last_playlist.json"):
             try:
@@ -435,7 +446,12 @@ class MediaPlayer:
         print("Repeat all:", self.repeat_all.get())
 
     def toggle_fullscreen(self):
-        self.window.attributes('-fullscreen', self.fullscreen.get())
+        if self.fullscreen.get():
+            self.window.attributes('-fullscreen', True)
+            self.video_canvas.config(width=self.window.winfo_screenwidth(), height=self.window.winfo_screenheight())
+        else:
+            self.window.attributes('-fullscreen', False)
+            self.video_canvas.config(width=640, height=640)  # Or whatever default size you want
         print("Fullscreen:", self.fullscreen.get())
 
     # App Settings Methods
@@ -525,8 +541,7 @@ class MediaPlayer:
         A versatile media player built with Python and VLC.
         """
         messagebox.showinfo("About Hydra Media Player", about_text)
-
-    
+ 
     def create_menu(self):
         menubar = tk.Menu(self.window)
         self.window.config(menu=menubar)
