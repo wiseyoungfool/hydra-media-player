@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
+import tkinter.dnd as dnd
 import vlc
 import os
 import json
@@ -285,7 +286,12 @@ class MediaPlayer:
         self.window.bind_all("<Control-s>", self.save_playlist)
         self.window.bind_all("<Control-l>", self.load_playlist)
         self.window.bind_all("<f>", self.toggle_fullscreen)
+
+        # Bind playlist shortcuts
         self.playlist.bind('<Double-1>', self.play_selected_file)
+        self.playlist.bind('<Button-1>', self.drag_start)
+        self.playlist.bind('<B1-Motion>', self.drag_motion)
+        self.playlist.bind('<ButtonRelease-1>', self.drag_end)
 
     # Progress Bar Methods
     def seek(self, event):
@@ -446,6 +452,27 @@ class MediaPlayer:
         self.track_label.config(text="Playlist Empty")
         self.update_progress_bar()
 
+
+    # Drag and Drop Playlist methods
+    def drag_start(self, event):
+        # Get the dragged item's index
+        item = self.playlist.nearest(event.y)
+        self.dragged_item = item
+
+    def drag_motion(self, event):
+        # Move the dragged item
+        item = self.playlist.nearest(event.y)
+        if item != self.dragged_item:
+            text = self.playlist.get(self.dragged_item)
+            self.playlist.delete(self.dragged_item)
+            self.playlist.insert(item, text)
+            self.dragged_item = item
+
+    def drag_end(self, event):
+        # Reset the dragged item
+        self.dragged_item = None
+
+
     # Media Settings Methods
     def toggle_shuffle(self):
         print("Shuffle:", self.shuffle.get())
@@ -468,6 +495,7 @@ class MediaPlayer:
             self.window.attributes('-fullscreen', False)
             self.video_canvas.config(width=640, height=640)  # Or whatever default size you want
         print("Fullscreen:", self.fullscreen.get())
+
 
     # App Settings Methods
     def toggle_always_on_top(self):
@@ -515,6 +543,7 @@ class MediaPlayer:
         # This is a placeholder implementation
         tk.Label(equalizer_window, text="Equalizer not implemented yet").pack()
 
+
     # Tools Menu Methods
     def show_media_info(self):
         if self.current_file:
@@ -533,6 +562,7 @@ class MediaPlayer:
         device = simpledialog.askstring("Select Audio Device", "Choose an audio device:", initialvalue=device_list[0])
         if device in device_list:
             self.media_player.audio_output_device_set(None, device)
+
 
     # Help Menu Methods
     def show_shortcuts(self):
