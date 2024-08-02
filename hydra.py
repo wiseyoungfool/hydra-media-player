@@ -188,6 +188,12 @@ class MediaPlayer:
                 self.play()
             self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
 
+    def play_selected_file(self, event):
+        selected_indices = self.playlist.curselection()
+        if selected_indices:
+            self.playlist.activate(selected_indices[0])
+            self.play()
+
     def update_play_pause_button(self):
         if self.media_player.is_playing():
             self.play_pause_button.config(text="Pause")
@@ -278,6 +284,8 @@ class MediaPlayer:
         self.window.bind_all("<Delete>", self.remove_song)
         self.window.bind_all("<Control-s>", self.save_playlist)
         self.window.bind_all("<Control-l>", self.load_playlist)
+        self.window.bind_all("<f>", self.toggle_fullscreen)
+        self.playlist.bind('<Double-1>', self.play_selected_file)
 
     # Progress Bar Methods
     def seek(self, event):
@@ -332,7 +340,7 @@ class MediaPlayer:
             for file_path in file_paths:
                 self.playlist.insert(tk.END, file_path)
 
-    def remove_song(self):
+    def remove_song(self, event=None):
         selected_index = self.playlist.curselection()[0]
         self.playlist.delete(selected_index)
 
@@ -372,18 +380,21 @@ class MediaPlayer:
         self.window.destroy()
 
     def save_current_playlist(self):
-        last_playlist = {
-            "playlist": list(self.playlist.get(0, tk.END)),
-            "file": self.current_file,
-            "index": self.playlist.curselection()[0],
-            "position": self.media_player.get_time() if self.current_file else 0
-        }
         try:
-            with open("last_playlist.json", 'w') as f:
-                json.dump(last_playlist, f)
-                print(f"Current Playlist saved.")
-        except IOError as e:
-            print(f"Error saving playlist: {e}")
+            last_playlist = {
+                "playlist": list(self.playlist.get(0, tk.END)),
+                "file": self.current_file,
+                "index": self.playlist.curselection()[0],
+                "position": self.media_player.get_time() if self.current_file else 0
+            }
+            try:
+                with open("last_playlist.json", 'w') as f:
+                    json.dump(last_playlist, f)
+                    print(f"Current Playlist saved.")
+            except IOError as e:
+                print(f"Error saving playlist: {e}")
+        except IndexError:
+            print("No playlist to save")
      
     def load_last_playlist(self):
         if os.path.exists("last_playlist.json"):
@@ -430,6 +441,10 @@ class MediaPlayer:
             except (json.JSONDecodeError, IOError) as e:
                 print(f"Error loading playlist: {e}")
     
+    def clear_playlist(self):
+        self.playlist.delete(0, tk.END)
+        self.track_label.config(text="Playlist Empty")
+        self.update_progress_bar()
 
     # Media Settings Methods
     def toggle_shuffle(self):
@@ -445,7 +460,7 @@ class MediaPlayer:
             self.repeat_one.set(False)
         print("Repeat all:", self.repeat_all.get())
 
-    def toggle_fullscreen(self):
+    def toggle_fullscreen(self, event=None):
         if self.fullscreen.get():
             self.window.attributes('-fullscreen', True)
             self.video_canvas.config(width=self.window.winfo_screenwidth(), height=self.window.winfo_screenheight())
@@ -554,6 +569,7 @@ class MediaPlayer:
         file_menu.add_command(label="Save Playlist", command=self.save_playlist)
         file_menu.add_command(label="Load Playlist", command=self.load_playlist)
         file_menu.add_separator()
+        file_menu.add_command(label="Clear Playlist", command=self.clear_playlist)
         file_menu.add_command(label="Exit", command=self.on_closing)
 
         # Playback Menu
