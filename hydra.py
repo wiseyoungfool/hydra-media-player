@@ -17,7 +17,10 @@ class MediaPlayer:
         self.window.title("Hydra Media Player")
         self.window.geometry("640x480")
 
+        # Boolean Vars
         self.can_save_interval = True
+        self.show_playlist = tk.BooleanVar(value=True)
+        self.current_file = None
 
         # Bind keyboard shortcuts
         self.window.bind_all("<space>", self.toggle_play_pause)
@@ -43,6 +46,8 @@ class MediaPlayer:
         self.toggle_dark_mode.grid(row=0, column=1)
 
         # Create Playlist
+        #self.playlist_frame = ttk.Frame(self.window)
+        #self.playlist_frame.pack(side="right", fill="y")
         self.playlist = tk.Listbox(self.window, width = 100)
         self.playlist.pack(pady=10)
 
@@ -124,11 +129,13 @@ class MediaPlayer:
         self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         # Load Last playlist
-        self.current_file = None
         self.load_last_playlist()
 
         # Initialize theme
         self.toggle_theme()
+
+        # Create menu
+        self.create_menu()
 
     # Control Methods
     def play(self):
@@ -145,8 +152,8 @@ class MediaPlayer:
             self.media_player.play()
             self.track_label.config(text=os.path.basename(selected_song))
             self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
-            if selected_song.endswith((".mp4",".avi", ".mkv", ".mov")): # Set fullscreen for video
-                self.media_player.video_set_fullscreen(self.fullscreen)
+            #if selected_song.endswith((".mp4",".avi", ".mkv", ".mov")): # Set fullscreen for video
+            #    self.media_player.video_set_fullscreen(self.fullscreen)
             self.current_file = selected_song
             self.next_button.config(state='enabled')
         except IndexError as e:
@@ -338,6 +345,16 @@ class MediaPlayer:
                 self.playlist.insert(tk.END, song)
             messagebox.showinfo("Success", "Playlist loaded successfully")
 
+    def create_playlist_from_folder(self):
+        folder = filedialog.askdirectory()
+        if folder:
+            playlist = []
+            for root, dirs, files in os.walk(folder):
+                for file in files:
+                    if file.endswith(SUPPORTED_EXTENSIONS):
+                        self.playlist.insert(tk.END, os.path.join(root, file))
+            #messagebox.showinfo("Playlist Created", f"Playlist created with {len(playlist)} files")
+
     def on_closing(self):
         self.save_current_playlist()
         self.window.destroy()
@@ -418,7 +435,7 @@ class MediaPlayer:
         print("Repeat all:", self.repeat_all.get())
 
     def toggle_fullscreen(self):
-        self.media_player.video_set_fullscreen(self.fullscreen.get())
+        self.window.attributes('-fullscreen', self.fullscreen.get())
         print("Fullscreen:", self.fullscreen.get())
 
     # App Settings Methods
@@ -451,8 +468,110 @@ class MediaPlayer:
             self.style.map('TCheckbutton',
                        background=[('active', '#e1e1e1')],
                        foreground=[('active', 'black')])
+            
+     # View Menu Methods
 
+    def toggle_playlist(self):
+        if self.show_playlist.get():
+            self.playlist_frame.pack(side="right", fill="y")
+        else:
+            self.playlist_frame.pack_forget()
 
+    def show_equalizer(self):
+        equalizer_window = tk.Toplevel(self.window)
+        equalizer_window.title("Equalizer")
+        # Here you would add sliders for different frequency bands
+        # This is a placeholder implementation
+        tk.Label(equalizer_window, text="Equalizer not implemented yet").pack()
+
+    # Tools Menu Methods
+    def show_media_info(self):
+        if self.current_file:
+            media = self.media_player.get_media()
+            info = f"Title: {media.get_meta(vlc.Meta.Title)}\n"
+            info += f"Artist: {media.get_meta(vlc.Meta.Artist)}\n"
+            info += f"Album: {media.get_meta(vlc.Meta.Album)}\n"
+            info += f"Duration: {self.media_player.get_length() / 1000} seconds"
+            messagebox.showinfo("Media Information", info)
+        else:
+            messagebox.showinfo("Media Information", "No media currently playing")
+
+    def select_audio_device(self):
+        devices = self.player.audio_output_device_enum()
+        device_list = [device.description for device in devices]
+        device = simpledialog.askstring("Select Audio Device", "Choose an audio device:", initialvalue=device_list[0])
+        if device in device_list:
+            self.media_player.audio_output_device_set(None, device)
+
+    # Help Menu Methods
+    def show_shortcuts(self):
+        shortcuts = """
+        Space: Play/Pause
+        Left Arrow: Previous Track
+        Right Arrow: Next Track
+        Up Arrow: Volume Up
+        Down Arrow: Volume Down
+        F: Toggle Fullscreen
+        """
+        messagebox.showinfo("Keyboard Shortcuts", shortcuts)
+
+    def show_about(self):
+        about_text = """
+        Hydra Media Player
+        Version 1.0
+        
+        Created by Brian Lynch
+        
+        A versatile media player built with Python and VLC.
+        """
+        messagebox.showinfo("About Hydra Media Player", about_text)
+
+    
+    def create_menu(self):
+        menubar = tk.Menu(self.window)
+        self.window.config(menu=menubar)
+
+        # File Menu
+        file_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="File", menu=file_menu)
+        file_menu.add_command(label="Open File", command=self.add_to_playlist)
+        file_menu.add_command(label="Create Playlist from Folder", command=self.create_playlist_from_folder)
+        file_menu.add_command(label="Save Playlist", command=self.save_playlist)
+        file_menu.add_command(label="Load Playlist", command=self.load_playlist)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self.on_closing)
+
+        # Playback Menu
+        playback_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Playback", menu=playback_menu)
+        playback_menu.add_command(label="Play", command=self.play)
+        playback_menu.add_command(label="Pause", command=self.pause)
+        playback_menu.add_command(label="Stop", command=self.stop)
+        playback_menu.add_command(label="Next", command=self.next_song)
+        playback_menu.add_command(label="Previous", command=self.previous_song)
+
+        # Options Menu
+        options_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Options", menu=options_menu)
+        options_menu.add_checkbutton(label="Shuffle", variable=self.shuffle, command=self.toggle_shuffle)
+        options_menu.add_checkbutton(label="Repeat One", variable=self.repeat_one, command=self.toggle_repeat_one)
+        options_menu.add_checkbutton(label="Repeat All", variable=self.repeat_all, command=self.toggle_repeat_all)
+        options_menu.add_separator()
+        options_menu.add_command(label="Toggle Fullscreen", command=self.toggle_fullscreen)
+        options_menu.add_checkbutton(label="Show Playlist", variable=self.show_playlist, command=self.toggle_playlist)
+
+        # Tools Menu
+        tools_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Tools", menu=tools_menu)
+        tools_menu.add_command(label="Media Information", command=self.show_media_info)
+        tools_menu.add_command(label="Select Audio Device", command=self.select_audio_device)
+        tools_menu.add_command(label="Show Equalizer", command=self.show_equalizer)
+
+        # Help Menu
+        help_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Help", menu=help_menu)
+        help_menu.add_command(label="Keyboard Shortcuts", command=self.show_shortcuts)
+        help_menu.add_command(label="About", command=self.show_about)
 
 if __name__ == "__main__":
     window = tk.Tk()
