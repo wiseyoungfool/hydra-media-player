@@ -7,6 +7,14 @@ import json
 import random
 import time
 
+import librosa
+import pyloudnorm as pyln
+import numpy as np
+
+import threading
+#from pyAudioAnalysis import audioBasicIO
+#from pyAudioAnalysis import ShortTermFeatures
+
 SUPPORTED_EXTENSIONS = (".mp3", ".wav", ".mp4", ".avi", ".mkv", ".flac", ".mov", ".wmv", ".ogg", ".m4a", ".m4v")
 DEFAULT_VOLUME = 100
 PROGRESS_UPDATE_INTERVAL = 100  # milliseconds
@@ -39,13 +47,18 @@ class MediaPlayer:
         self.notebook = ttk.Notebook(self.window)
         self.notebook.pack(expand=True, fill='both')
 
-        # Create frames for playlist and video
+        # Create frames switchable tabs
         self.playlist_frame = ttk.Frame(self.notebook)
         self.video_frame = ttk.Frame(self.notebook)
+        self.analysis_frame = ttk.Frame(self.notebook)
+
+        self.analysis_results_frame = ttk.Frame(self.analysis_frame)
+        self.analysis_results_frame.pack(expand=True, fill='both', pady=10)
 
         # Add frames to notebook
         self.notebook.add(self.playlist_frame, text='Playlist')
         self.notebook.add(self.video_frame, text='Video')
+        self.notebook.add(self.analysis_frame, text='Analysis')
 
         # Create Playlist
         self.playlist = tk.Listbox(self.playlist_frame, width=100)
@@ -90,16 +103,16 @@ class MediaPlayer:
 
         # Create playlist controls
         self.open_button = ttk.Button(controls_frame, text="Open", command=self.add_to_playlist)
-        self.open_button.grid(row=1, column=0, pady=10)
+        #self.open_button.grid(row=1, column=0, pady=10)
 
         self.remove_button = ttk.Button(controls_frame,text="Remove",command=self.remove_song)
-        self.remove_button.grid(row=1, column=1, pady=10)
+        #self.remove_button.grid(row=1, column=1, pady=10)
 
         self.save_button = ttk.Button(controls_frame, text="Save Playlist", command=self.save_playlist)
-        self.save_button.grid(row=1, column=2, pady=10)
+        #self.save_button.grid(row=1, column=2, pady=10)
 
         self.load_button = ttk.Button(controls_frame, text="Load Playlist", command=self.load_playlist)
-        self.load_button.grid(row=1, column=3, pady=10)
+        #self.load_button.grid(row=1, column=3, pady=10)
 
         # Create media settings
         media_settings_frame = ttk.Frame(self.window)
@@ -120,6 +133,10 @@ class MediaPlayer:
         self.fullscreen = tk.BooleanVar(media_settings_frame, False)
         self.fullscreen_button = ttk.Checkbutton(media_settings_frame, text="Fullscreen", variable=self.fullscreen, command=self.toggle_fullscreen)
         self.fullscreen_button.grid(row=0, column=3)
+
+        #Analysis controls
+        self.analyze_button = ttk.Button(self.analysis_frame, text="Analyze Audio", command=self.perform_audio_analysis)
+        self.analyze_button.pack(pady=10)
 
         # Create the vlc player instance
         self.player = vlc.Instance()
@@ -627,12 +644,73 @@ class MediaPlayer:
         tools_menu.add_command(label="Media Information", command=self.show_media_info)
         tools_menu.add_command(label="Select Audio Device", command=self.select_audio_device)
         tools_menu.add_command(label="Show Equalizer", command=self.show_equalizer)
+        tools_menu.add_command(label="Analyze Audio", command=self.perform_audio_analysis)
 
         # Help Menu
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Help", menu=help_menu)
         help_menu.add_command(label="Keyboard Shortcuts", command=self.show_shortcuts)
         help_menu.add_command(label="About", command=self.show_about)
+
+    # Audio Analysis
+    
+    def perform_audio_analysis(self):
+        if not self.current_file:
+            messagebox.showinfo("Error", "No file is currently playing")
+            return
+        
+        self.analyze_button.config(text="Analyzing...")
+        threading.Thread(target=self._run_analysis, daemon=True).start()
+        
+
+    def _run_analysis(self):
+        # Load the audio file
+        y, sr = librosa.load(self.current_file)
+
+        # Tempo
+        tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
+        tempo = float(tempo)
+
+        # Key
+        chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
+        chroma_sum = np.sum(chroma, axis=1)
+        key_index = np.argmax(chroma_sum)
+        key_map = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+        key = key_map[key_index]
+
+        # LUFS
+        meter = pyln.Meter(sr) # create BS.1770 meter
+        loudness = meter.integrated_loudness(y)
+
+        # RMS
+        rms = librosa.feature.rms(y=y)[0].mean()
+
+        # Frequency analysis
+        spectral_centroid = librosa.feature.spectral_centroid(y=y, sr=sr)[0].mean()
+        
+        # Spectral Rolloff
+        spectral_rolloff = librosa.feature.spectral_rolloff(y=y, sr=sr)[0].mean()
+
+        # Update the UI in the main thread
+        self.window.after(0, self.update_analysis_display, tempo, key, loudness, rms, spectral_centroid, spectral_rolloff)
+    
+
+    def update_analysis_display(self, tempo, key, loudness, rms, spectral_centroid, spectral_rolloff):
+        self.analyze_button.config(text="Analyze Audio")
+        
+        # Clear previous content in the results frame
+        for widget in self.analysis_results_frame.winfo_children():
+            widget.destroy()
+
+        # Create labels with analysis results
+        ttk.Label(self.analysis_results_frame, text=f"Tempo: {float(tempo):.2f} BPM").pack()
+        ttk.Label(self.analysis_results_frame, text=f"Estimated Key: {key}").pack()
+        ttk.Label(self.analysis_results_frame, text=f"LUFS: {float(loudness):.2f}").pack()
+        ttk.Label(self.analysis_results_frame, text=f"RMS: {float(rms):.4f}").pack()
+        ttk.Label(self.analysis_results_frame, text=f"Spectral Centroid: {float(spectral_centroid):.2f} Hz").pack()
+        ttk.Label(self.analysis_results_frame, text=f"Spectral Rolloff: {float(spectral_rolloff):.2f} Hz").pack()
+
+        print("Audio Analysis Complete")
 
 if __name__ == "__main__":
     window = tk.Tk()
