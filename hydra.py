@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, ttk, simpledialog
 import tkinter.dnd as dnd
 import vlc
 import os
@@ -24,7 +24,7 @@ class MediaPlayer:
     def __init__(self, window):
         self.window = window
         self.window.title("Hydra Media Player")
-        self.window.geometry("640x640")
+        self.window.geometry("640x560")
 
         # Boolean Vars
         self.can_save_interval = True
@@ -51,22 +51,52 @@ class MediaPlayer:
         self.playlist_frame = ttk.Frame(self.notebook)
         self.video_frame = ttk.Frame(self.notebook)
         self.analysis_frame = ttk.Frame(self.notebook)
+        self.collections_frame = ttk.Frame(self.notebook)
 
         self.analysis_results_frame = ttk.Frame(self.analysis_frame)
         self.analysis_results_frame.pack(expand=True, fill='both', pady=10)
-
+        
         # Add frames to notebook
         self.notebook.add(self.playlist_frame, text='Playlist')
         self.notebook.add(self.video_frame, text='Video')
         self.notebook.add(self.analysis_frame, text='Analysis')
+        self.notebook.add(self.collections_frame, text='Collections')
 
         # Create Playlist
-        self.playlist = tk.Listbox(self.playlist_frame, width=100)
-        self.playlist.pack(pady=10, expand=True, fill='both')
+        self.playlist = tk.Listbox(self.playlist_frame, width=50)
+        self.playlist.pack(pady=10, padx=10, expand=True, fill=tk.BOTH)
+
+        # Create playlist controls
+        playlist_buttons_frame = ttk.Frame(self.playlist_frame)
+        playlist_buttons_frame.pack(pady=10)
+
+        self.add_button = ttk.Button(playlist_buttons_frame, text="Add", command=self.add_to_playlist)
+        self.add_button.grid(row=0, column=0, padx=10)
+
+        self.remove_button = ttk.Button(playlist_buttons_frame,text="Remove",command=self.remove_song)
+        self.remove_button.grid(row=0, column=1, padx=10)
 
         # Create video canvas
         self.video_canvas = tk.Canvas(self.video_frame, bg='black')
         self.video_canvas.pack(expand=True, fill='both')
+
+        # Create listbox for playlists
+        self.collections_listbox = tk.Listbox(self.collections_frame, width=50)
+        self.collections_listbox.pack(pady=10, padx=10, fill=tk.BOTH, expand=True)
+        self.collections_listbox.bind('<Double-1>', self.load_selected_playlist)
+
+        # Create buttons
+        collection_buttons_frame = ttk.Frame(self.collections_frame)
+        collection_buttons_frame.pack(pady=10)
+
+        self.open_playlist_button = ttk.Button(collection_buttons_frame, text="Open", command=self.load_selected_playlist)
+        self.open_playlist_button.grid(row=0, column=0, padx=5)
+
+        self.save_playlist_button = ttk.Button(collection_buttons_frame, text="Save", command=self.save_current_playlist_as)
+        self.save_playlist_button.grid(row=0, column=1, padx=5)
+
+        # Load existing playlists
+        self.load_playlists()
 
         # Add track label
         self.track_label = ttk.Label(self.window, text="No track playing", relief=tk.SUNKEN)
@@ -100,19 +130,6 @@ class MediaPlayer:
         self.volume_slider = tk.Scale(controls_frame, from_=0, to=100, orient=tk.HORIZONTAL, label='Volume', command=self.set_volume)
         self.volume_slider.set(DEFAULT_VOLUME)
         self.volume_slider.grid(row=0, column=4, padx=10)
-
-        # Create playlist controls
-        self.open_button = ttk.Button(controls_frame, text="Open", command=self.add_to_playlist)
-        #self.open_button.grid(row=1, column=0, pady=10)
-
-        self.remove_button = ttk.Button(controls_frame,text="Remove",command=self.remove_song)
-        #self.remove_button.grid(row=1, column=1, pady=10)
-
-        self.save_button = ttk.Button(controls_frame, text="Save Playlist", command=self.save_playlist)
-        #self.save_button.grid(row=1, column=2, pady=10)
-
-        self.load_button = ttk.Button(controls_frame, text="Load Playlist", command=self.load_playlist)
-        #self.load_button.grid(row=1, column=3, pady=10)
 
         # Create media settings
         media_settings_frame = ttk.Frame(self.window)
@@ -378,8 +395,10 @@ class MediaPlayer:
         else:
             messagebox.showerror("Error", "No songs in the playlist")
 
-    def load_playlist(self):
-        file_path = filedialog.askopenfilename(defaultextension=".json", filetypes=[("JSON Files", "*.json")])
+    def load_playlist(self, file_path = None):
+        if file_path == None:
+            file_path = filedialog.askopenfilename(defaultextension=".json", filetypes=[("JSON Files", "*.json")])
+        
         if file_path:
             with open(file_path, 'r') as f:
                 playlist = json.load(f)
@@ -469,6 +488,31 @@ class MediaPlayer:
         self.track_label.config(text="Playlist Empty")
         self.update_progress_bar()
 
+    def load_playlists(self):
+        playlist_dir = "playlists"
+        if not os.path.exists(playlist_dir):
+            os.makedirs(playlist_dir)
+        
+        playlists = [f for f in os.listdir(playlist_dir) if f.endswith('.json')]
+        self.collections_listbox.delete(0, tk.END)
+        for playlist in playlists:
+            self.collections_listbox.insert(tk.END, playlist[:-5])  # Remove .json extension
+
+    def load_selected_playlist(self, event=None):
+        selection = self.collections_listbox.curselection()
+        if selection:
+            playlist_name = self.collections_listbox.get(selection[0])
+            file_path = os.path.join("playlists", f"{playlist_name}.json")
+            self.load_playlist(file_path)
+    
+    def save_current_playlist_as(self):
+        playlist_name = simpledialog.askstring("Save Playlist", "Enter playlist name:")
+        if playlist_name:
+            file_path = os.path.join("playlists", f"{playlist_name}.json")
+            playlist = list(self.playlist.get(0, tk.END))
+            with open(file_path, 'w') as f:
+                json.dump(playlist, f)
+            self.load_playlists()  # Refresh the collections list
 
     # Drag and Drop Playlist methods
     def drag_start(self, event):
