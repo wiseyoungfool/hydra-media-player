@@ -6,7 +6,7 @@ import os
 import json
 import random
 import time
-
+import sys
 import librosa
 import pyloudnorm as pyln
 import numpy as np
@@ -62,6 +62,22 @@ class MediaPlayer:
         self.notebook.add(self.analysis_frame, text='Analysis')
         self.notebook.add(self.collections_frame, text='Collections')
 
+        # Create video canvas
+        self.video_canvas = tk.Canvas(self.video_frame, bg='black')
+        self.video_canvas.pack(expand=True, fill='both')
+
+        # Create a separate window for the video
+        self.video_window = tk.Toplevel(self.window)
+        self.video_window.title("Video")
+        self.video_window.geometry("1280x720")
+        #self.video_window.overrideredirect(True)
+        self.video_window.attributes('-topmost', True)
+        self.video_window.withdraw()  # Hide the window initially
+
+        # Create a frame in the video window
+        self.video_window_frame = tk.Frame(self.video_window, bg='black')
+        self.video_window_frame.pack(expand=True, fill='both')
+
         # Create Playlist
         self.playlist = tk.Listbox(self.playlist_frame, width=50)
         self.playlist.pack(pady=10, padx=10, expand=True, fill=tk.BOTH)
@@ -75,10 +91,6 @@ class MediaPlayer:
 
         self.remove_button = ttk.Button(playlist_buttons_frame,text="Remove",command=self.remove_song)
         self.remove_button.grid(row=0, column=1, padx=10)
-
-        # Create video canvas
-        self.video_canvas = tk.Canvas(self.video_frame, bg='black')
-        self.video_canvas.pack(expand=True, fill='both')
 
         # Create listbox for playlists
         self.collections_listbox = tk.Listbox(self.collections_frame, width=50)
@@ -148,7 +160,7 @@ class MediaPlayer:
         self.repeat_all_button.grid(row=0, column=2)
 
         self.fullscreen = tk.BooleanVar(media_settings_frame, False)
-        self.fullscreen_button = ttk.Checkbutton(media_settings_frame, text="Fullscreen", variable=self.fullscreen, command=self.toggle_fullscreen)
+        self.fullscreen_button = ttk.Checkbutton(media_settings_frame, text="Fullscreen", variable=self.fullscreen, command=self.set_fullscreen)
         self.fullscreen_button.grid(row=0, column=3)
 
         #Analysis controls
@@ -158,7 +170,7 @@ class MediaPlayer:
         # Create the vlc player instance
         self.player = vlc.Instance()
         self.media_player = self.player.media_player_new()
-        self.media_player.set_hwnd(self.video_canvas.winfo_id())
+        self.embed_video()
 
         # Set the end event
         end_event = vlc.EventType.MediaPlayerEndReached
@@ -548,16 +560,49 @@ class MediaPlayer:
             self.repeat_one.set(False)
         print("Repeat all:", self.repeat_all.get())
 
-    def toggle_fullscreen(self, event=None):
+    def set_fullscreen(self, event=None):
+        time_spot = self.media_player.get_time()
+        self.stop()
         if self.fullscreen.get():
-            self.window.attributes('-fullscreen', True)
-            self.video_canvas.config(width=self.window.winfo_screenwidth(), height=self.window.winfo_screenheight())
+            self.detach_video()
+            self.video_window.attributes('-fullscreen', True)
         else:
-            self.window.attributes('-fullscreen', False)
-            self.video_canvas.config(width=640, height=640)  # Or whatever default size you want
+            self.video_window.attributes('-fullscreen', False)
+            self.embed_video()
+            self.video_canvas.pack(expand=True, fill='both')
+        self.window.update()
+        self.media_player.play()
+        self.media_player.set_time(time_spot)
+        self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
         print("Fullscreen:", self.fullscreen.get())
 
+    def toggle_fullscreen(self, event=None):
+        self.fullscreen.set(not self.fullscreen.get())
+        self.set_fullscreen()
 
+    def embed_video(self):
+        if sys.platform.startswith('linux'):
+            self.media_player.set_xwindow(self.video_canvas.winfo_id())
+        elif sys.platform == "win32":
+            self.media_player.set_hwnd(self.video_canvas.winfo_id())
+        elif sys.platform == "darwin":
+            self.media_player.set_nsobject(self.video_canvas.winfo_id())
+        
+        self.video_window.withdraw()
+
+
+    def detach_video(self):
+        if sys.platform.startswith('linux'):
+            self.media_player.set_xwindow(self.video_window_frame.winfo_id())
+        elif sys.platform == "win32":
+            self.media_player.set_hwnd(self.video_window_frame.winfo_id())
+        elif sys.platform == "darwin":
+            self.media_player.set_nsobject(self.video_window_frame.winfo_id())
+        
+        self.video_canvas.pack_forget()
+        self.video_window.deiconify()
+
+    
     # App Settings Methods
     def toggle_always_on_top(self):
         self.window.attributes('-topmost', self.always_on_top.get())
@@ -759,4 +804,5 @@ class MediaPlayer:
 if __name__ == "__main__":
     window = tk.Tk()
     player = MediaPlayer(window)
+    window.protocol("WM_DELETE_WINDOW", player.on_closing)
     window.mainloop()
