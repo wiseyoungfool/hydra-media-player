@@ -25,16 +25,17 @@ Planned features:
 
 Installation
 ------------
-1. Clone this repository to your local machine:
+1. Download and install VLC Media player: [https://www.videolan.org/vlc/](https://www.videolan.org/vlc/)
+2. Clone this repository to your local machine:
    ```sh
    git clone https://github.com/yourusername/hydra-media-player.git
    cd hydra-media-player
    ```
-2. Install dependencies using pip:
+3. Install dependencies using pip:
    ```sh
    pip install -r requirements.txt
    ```
-3. Run the application:
+4. Run the application:
    ```sh
    python hydra.py
    ```
