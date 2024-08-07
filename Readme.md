@@ -56,10 +56,6 @@ Usage
 3. Use the menu to select audio devices and view information about currently playing media.
 4. Navigate through your playlist using the buttons provided or by selecting tracks from the sidebar.
 
-Contributing
-------------
-Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change. Please make sure to update tests as appropriate.
-
 License
 -------
 [MIT](https://choosealicense.com/licenses/mit/)
