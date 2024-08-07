@@ -30,18 +30,19 @@ class MediaPlayer:
         self.can_save_interval = True
         self.show_playlist = tk.BooleanVar(value=True)
         self.current_file = None
-
+        self.show_subtitles = tk.BooleanVar(value=True)
+        
         # Create settings controls
         settings_frame = ttk.Frame(self.window)
-        settings_frame.pack()
+        #settings_frame.pack()
 
         self.always_on_top = tk.BooleanVar(settings_frame, False)
         self.always_on_top_button = ttk.Checkbutton(settings_frame, text="Toggle Always on Top", variable=self.always_on_top, command=self.toggle_always_on_top)
-        self.always_on_top_button.grid(row=0, column=0)
+        #self.always_on_top_button.grid(row=0, column=0)
 
         self.dark_mode = tk.BooleanVar(settings_frame, False)
         self.toggle_dark_mode = ttk.Checkbutton(settings_frame, text="Dark Mode", variable=self.dark_mode, command=self.toggle_theme)
-        self.toggle_dark_mode.grid(row=0, column=1)
+        #self.toggle_dark_mode.grid(row=0, column=1)
 
         # Create a notebook (tabbed interface)
         self.notebook = ttk.Notebook(self.window)
@@ -176,18 +177,20 @@ class MediaPlayer:
         end_event = vlc.EventType.MediaPlayerEndReached
         self.media_player.event_manager().event_attach(end_event, self.song_finished)
 
+        # Create menu
+        self.create_menu()
+
         # Bind events
         self.create_event_bindings()
         self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         # Load Last playlist
         self.load_last_playlist()
+        self.default_subtitle_track = self.media_player.video_get_spu()
+        print(self.media_player.video_get_spu())
 
         # Initialize theme
         self.toggle_theme()
-
-        # Create menu
-        self.create_menu()
 
     # Control Methods
     def play(self):
@@ -202,8 +205,10 @@ class MediaPlayer:
             media = self.player.media_new(selected_song)
             self.media_player.set_media(media)
             self.media_player.play()
+            self.update_subtitle_tracks_menu()
             self.track_label.config(text=os.path.basename(selected_song))
             self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
+            
 
             # Go to video frame if playing video
             if selected_song.endswith((".mp4", ".avi", ".mkv", ".mov")):
@@ -332,6 +337,7 @@ class MediaPlayer:
         self.window.bind_all("<Control-s>", self.save_playlist)
         self.window.bind_all("<Control-l>", self.load_playlist)
         self.window.bind_all("<f>", self.toggle_fullscreen)
+        self.window.bind_all("<c>", self.toggle_subtitles)
 
         # Bind playlist shortcuts
         self.playlist.bind('<Double-1>', self.play_selected_file)
@@ -590,7 +596,6 @@ class MediaPlayer:
         
         self.video_window.withdraw()
 
-
     def detach_video(self):
         if sys.platform.startswith('linux'):
             self.media_player.set_xwindow(self.video_window_frame.winfo_id())
@@ -602,6 +607,37 @@ class MediaPlayer:
         self.video_canvas.pack_forget()
         self.video_window.deiconify()
 
+    def toggle_subtitles(self, event=None):
+        print("Old Track:", self.media_player.video_get_spu(),  "Show Subtitles:", self.show_subtitles.get())
+        if self.media_player.video_get_spu() == -1:
+            self.show_subtitles.set(True)
+            self.media_player.video_set_spu(self.default_subtitle_track)
+        else:
+            self.show_subtitles.set(False)
+            self.media_player.video_set_spu(-1)
+        print("New Track:",self.media_player.video_get_spu(), "Show Subtitles:", self.show_subtitles.get())
+
+    def update_subtitle_tracks_menu(self):
+        print("Updating subtitle tracks menu")
+        self.subtitle_tracks_menu.delete(0, 'end')
+        
+        track_count = self.media_player.video_get_spu_count()
+        print(f"Detected {track_count} subtitle tracks")
+        
+        if track_count <= 0:
+            print("No subtitles available")
+            self.subtitle_tracks_menu.add_command(label="No subtitles available", state='disabled')
+        else:
+            self.subtitle_tracks_menu.add_command(label="Disable subtitles", command=lambda: self.media_player.video_set_spu(-1))
+            for i in range(track_count):
+                track_description = self.media_player.video_get_spu_description(i)
+                if track_description:
+                    track_name = track_description[1].decode()
+                    print(f"Track {i}: {track_name}")
+                    self.subtitle_tracks_menu.add_command(
+                        label=track_name,
+                        command=lambda id=i: self.media_player.video_set_spu(id)
+                    )
     
     # App Settings Methods
     def toggle_always_on_top(self):
@@ -676,16 +712,21 @@ class MediaPlayer:
         Space: Play/Pause
         Left Arrow: Previous Track
         Right Arrow: Next Track
-        Up Arrow: Volume Up
-        Down Arrow: Volume Down
+        Shift + Up Arrow: Volume Up
+        Shift + Down Arrow: Volume Down
+        Control + O: Add to Playlist
+        Delete: Remove From Playlist
+        Control + S: Save Playlist
+        Control + L: Open Playlist
         F: Toggle Fullscreen
+        C: Toggle Subtitles
         """
         messagebox.showinfo("Keyboard Shortcuts", shortcuts)
 
     def show_about(self):
         about_text = """
         Hydra Media Player
-        Version 1.0
+        Version 0.1
         
         Created by Brian Lynch
         
@@ -716,6 +757,13 @@ class MediaPlayer:
         playback_menu.add_command(label="Stop", command=self.stop)
         playback_menu.add_command(label="Next", command=self.next_song)
         playback_menu.add_command(label="Previous", command=self.previous_song)
+        playback_menu.add_separator()
+        subtitle_menu = tk.Menu(playback_menu, tearoff=0)
+        playback_menu.add_cascade(label="Subtitles", menu=subtitle_menu)
+        subtitle_menu.add_checkbutton(label="Toggle Subtitles", variable=self.show_subtitles, state='active', command=self.toggle_subtitles)
+        self.subtitle_tracks_menu = tk.Menu(subtitle_menu, tearoff=0)
+        subtitle_menu.add_cascade(label="Select Subtitle Track", menu=self.subtitle_tracks_menu)
+        self.subtitle_tracks_menu.add_command(label="No media loaded", state='disabled')
 
         # Options Menu
         options_menu = tk.Menu(menubar, tearoff=0)
@@ -725,7 +773,10 @@ class MediaPlayer:
         options_menu.add_checkbutton(label="Repeat All", variable=self.repeat_all, command=self.toggle_repeat_all)
         options_menu.add_separator()
         options_menu.add_command(label="Toggle Fullscreen", command=self.toggle_fullscreen)
-        options_menu.add_checkbutton(label="Show Playlist", variable=self.show_playlist, command=self.toggle_playlist)
+        #options_menu.add_checkbutton(label="Show Playlist", variable=self.show_playlist, command=self.toggle_playlist)
+        options_menu.add_separator()
+        options_menu.add_checkbutton(label="Always On Top", variable=self.always_on_top, command=self.toggle_always_on_top)
+        options_menu.add_checkbutton(label="Dark Mode", variable=self.dark_mode, command=self.toggle_theme)
 
         # Tools Menu
         tools_menu = tk.Menu(menubar, tearoff=0)
