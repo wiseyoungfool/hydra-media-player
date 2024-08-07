@@ -21,6 +21,7 @@ Planned features:
 - Improve UI with images, auto hiding, floating controls
 - Improve audio analysis tools to be more robust and accurate
 - Add visualizer for audio and EQ/Compression tools
+- Waveform visualization using matplotlib and numpy
 
 Installation
 ------------
@@ -35,12 +36,12 @@ Installation
    ```
 3. Run the application:
    ```sh
-   python main.py
+   python hydra.py
    ```
 
 Usage
 -----
-1. Open the media player by running `python main.py`.
+1. Open the media player by running `python hydra.py`.
 2. Use the following keyboard shortcuts to control playback:
     - Spacebar: Play/Pause
     - Left Arrow: Previous Track
