@@ -37,11 +37,11 @@ class MediaPlayer:
         #settings_frame.pack()
 
         self.always_on_top = tk.BooleanVar(settings_frame, False)
-        self.always_on_top_button = ttk.Checkbutton(settings_frame, text="Toggle Always on Top", variable=self.always_on_top, command=self.toggle_always_on_top)
+        self.always_on_top_button = ttk.Checkbutton(settings_frame, text="Toggle Always on Top", variable=self.always_on_top, command=self.toggle_always_on_top, takefocus=False)
         #self.always_on_top_button.grid(row=0, column=0)
 
         self.dark_mode = tk.BooleanVar(settings_frame, False)
-        self.toggle_dark_mode = ttk.Checkbutton(settings_frame, text="Dark Mode", variable=self.dark_mode, command=self.toggle_theme)
+        self.toggle_dark_mode = ttk.Checkbutton(settings_frame, text="Dark Mode", variable=self.dark_mode, command=self.toggle_theme, takefocus=False)
         #self.toggle_dark_mode.grid(row=0, column=1)
 
         # Create a notebook (tabbed interface)
@@ -87,10 +87,10 @@ class MediaPlayer:
         playlist_buttons_frame = ttk.Frame(self.playlist_frame)
         playlist_buttons_frame.pack(pady=10)
 
-        self.add_button = ttk.Button(playlist_buttons_frame, text="Add", command=self.add_to_playlist)
+        self.add_button = ttk.Button(playlist_buttons_frame, text="Add", command=self.add_to_playlist, takefocus=False)
         self.add_button.grid(row=0, column=0, padx=10)
 
-        self.remove_button = ttk.Button(playlist_buttons_frame,text="Remove",command=self.remove_song)
+        self.remove_button = ttk.Button(playlist_buttons_frame,text="Remove",command=self.remove_song, takefocus=False)
         self.remove_button.grid(row=0, column=1, padx=10)
 
         # Create listbox for playlists
@@ -102,10 +102,10 @@ class MediaPlayer:
         collection_buttons_frame = ttk.Frame(self.collections_frame)
         collection_buttons_frame.pack(pady=10)
 
-        self.open_playlist_button = ttk.Button(collection_buttons_frame, text="Open", command=self.load_selected_playlist)
+        self.open_playlist_button = ttk.Button(collection_buttons_frame, text="Open", command=self.load_selected_playlist, takefocus=False)
         self.open_playlist_button.grid(row=0, column=0, padx=5)
 
-        self.save_playlist_button = ttk.Button(collection_buttons_frame, text="Save", command=self.save_current_playlist_as)
+        self.save_playlist_button = ttk.Button(collection_buttons_frame, text="Save", command=self.save_current_playlist_as, takefocus=False)
         self.save_playlist_button.grid(row=0, column=1, padx=5)
 
         # Load existing playlists
@@ -128,19 +128,19 @@ class MediaPlayer:
         controls_frame = ttk.Frame(self.window)
         controls_frame.pack()
 
-        self.play_pause_button = ttk.Button(controls_frame, text="Play", command=self.toggle_play_pause)
+        self.play_pause_button = ttk.Button(controls_frame, text="Play", command=self.toggle_play_pause, takefocus=False)
         self.play_pause_button.grid(row=0, column=0, padx=10)
 
-        self.previous_button = ttk.Button(controls_frame, text="Previous", command=self.previous_song)
+        self.previous_button = ttk.Button(controls_frame, text="Previous", command=self.previous_song, takefocus=False)
         self.previous_button.grid(row=0, column=1, padx=10)
 
-        self.next_button = ttk.Button(controls_frame, text="Next", command=self.next_song)
+        self.next_button = ttk.Button(controls_frame, text="Next", command=self.next_song, takefocus=False)
         self.next_button.grid(row=0, column=2, padx=10)
 
-        self.stop_button = ttk.Button(controls_frame, text="Stop", command=self.stop)
+        self.stop_button = ttk.Button(controls_frame, text="Stop", command=self.stop, takefocus=False)
         self.stop_button.grid(row=0, column=3, padx=10)
 
-        self.volume_slider = tk.Scale(controls_frame, from_=0, to=100, orient=tk.HORIZONTAL, label='Volume', command=self.set_volume)
+        self.volume_slider = tk.Scale(controls_frame, from_=0, to=100, orient=tk.HORIZONTAL, label='Volume', command=self.set_volume, takefocus=False)
         self.volume_slider.set(DEFAULT_VOLUME)
         self.volume_slider.grid(row=0, column=4, padx=10)
 
@@ -149,23 +149,23 @@ class MediaPlayer:
         media_settings_frame.pack()
 
         self.shuffle = tk.BooleanVar(media_settings_frame, False)
-        self.shuffle_button = ttk.Checkbutton(media_settings_frame, text="Shuffle", variable=self.shuffle, command=self.toggle_shuffle)
+        self.shuffle_button = ttk.Checkbutton(media_settings_frame, text="Shuffle", variable=self.shuffle, command=self.toggle_shuffle, takefocus=False)
         self.shuffle_button.grid(row=0, column=0)
 
         self.repeat_one = tk.BooleanVar(media_settings_frame, False)
-        self.repeat_one_button = ttk.Checkbutton(media_settings_frame, text="Repeat One", variable=self.repeat_one, command=self.toggle_repeat_one)
+        self.repeat_one_button = ttk.Checkbutton(media_settings_frame, text="Repeat One", variable=self.repeat_one, command=self.toggle_repeat_one, takefocus=False)
         self.repeat_one_button.grid(row=0, column=1)
 
         self.repeat_all = tk.BooleanVar(media_settings_frame, False)
-        self.repeat_all_button = ttk.Checkbutton(media_settings_frame, text="Repeat All", variable=self.repeat_all, command=self.toggle_repeat_one)
+        self.repeat_all_button = ttk.Checkbutton(media_settings_frame, text="Repeat All", variable=self.repeat_all, command=self.toggle_repeat_one, takefocus=False)
         self.repeat_all_button.grid(row=0, column=2)
 
         self.fullscreen = tk.BooleanVar(media_settings_frame, False)
-        self.fullscreen_button = ttk.Checkbutton(media_settings_frame, text="Fullscreen", variable=self.fullscreen, command=self.set_fullscreen)
+        self.fullscreen_button = ttk.Checkbutton(media_settings_frame, text="Fullscreen", variable=self.fullscreen, command=self.set_fullscreen, takefocus=False)
         self.fullscreen_button.grid(row=0, column=3)
 
         #Analysis controls
-        self.analyze_button = ttk.Button(self.analysis_frame, text="Analyze Audio", command=self.perform_audio_analysis)
+        self.analyze_button = ttk.Button(self.analysis_frame, text="Analyze Audio", command=self.perform_audio_analysis, takefocus=False)
         self.analyze_button.pack(pady=10)
 
         # Create the vlc player instance
@@ -176,6 +176,7 @@ class MediaPlayer:
         # Set the end event
         end_event = vlc.EventType.MediaPlayerEndReached
         self.media_player.event_manager().event_attach(end_event, self.song_finished)
+        self.media_player.event_manager().event_attach(vlc.EventType.MediaPlayerMediaChanged, self.on_media_changed)
 
         # Create menu
         self.create_menu()
@@ -192,6 +193,9 @@ class MediaPlayer:
         # Initialize theme
         self.toggle_theme()
 
+        self.window.focus_set()
+        self.on_media_changed()
+
     # Control Methods
     def play(self):
         try:
@@ -203,12 +207,11 @@ class MediaPlayer:
             if not os.path.exists(selected_song):
                 raise FileNotFoundError(f"File not found: {selected_song}")
             media = self.player.media_new(selected_song)
+            media.parse()
             self.media_player.set_media(media)
             self.media_player.play()
-            self.update_subtitle_tracks_menu()
             self.track_label.config(text=os.path.basename(selected_song))
             self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
-            
 
             # Go to video frame if playing video
             if selected_song.endswith((".mp4", ".avi", ".mkv", ".mov")):
@@ -239,12 +242,15 @@ class MediaPlayer:
             else:
                 self.play()
             self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
+    
+        self.window.focus_set()
 
     def play_selected_file(self, event):
         selected_indices = self.playlist.curselection()
         if selected_indices:
             self.playlist.activate(selected_indices[0])
             self.play()
+        self.window.focus_set()
 
     def update_play_pause_button(self):
         if self.media_player.is_playing():
@@ -256,6 +262,7 @@ class MediaPlayer:
         self.media_player.stop()
         self.play_pause_button.config(text="Play")
         self.progress['value']=0;
+        self.window.focus_set()
 
     def previous_song(self, event=None):
         try:
@@ -269,6 +276,7 @@ class MediaPlayer:
             self.play()
         except IndexError:
             messagebox.showerror("Error", "No more songs in the playlist.")
+        self.window.focus_set()
             
     def next_song(self, event=None):
         try:
@@ -306,6 +314,7 @@ class MediaPlayer:
         except Exception as e:
             print(f"Error in next_song: {e}")
             self.stop()
+        self.window.focus_set()
 
     def song_finished(self, event):
         self.window.after(0,self.next_song) # call next_song on tkinter's main thread to prevent crashes
@@ -439,6 +448,12 @@ class MediaPlayer:
         self.save_current_playlist()
         self.window.destroy()
 
+
+    def on_media_changed(self, event=None):
+        print("Media changed, updating tracks")
+        self.window.after(2000, self.update_subtitle_tracks_menu)
+        self.window.after(2000, self.update_audio_tracks_menu)
+        
     def save_current_playlist(self):
         try:
             last_playlist = {
@@ -618,27 +633,49 @@ class MediaPlayer:
         print("New Track:",self.media_player.video_get_spu(), "Show Subtitles:", self.show_subtitles.get())
 
     def update_subtitle_tracks_menu(self):
-        print("Updating subtitle tracks menu")
         self.subtitle_tracks_menu.delete(0, 'end')
         
-        track_count = self.media_player.video_get_spu_count()
-        print(f"Detected {track_count} subtitle tracks")
-        
-        if track_count <= 0:
-            print("No subtitles available")
+        tracks = self.media_player.video_get_spu_description()
+        if not tracks:
             self.subtitle_tracks_menu.add_command(label="No subtitles available", state='disabled')
         else:
             self.subtitle_tracks_menu.add_command(label="Disable subtitles", command=lambda: self.media_player.video_set_spu(-1))
-            for i in range(track_count):
-                track_description = self.media_player.video_get_spu_description(i)
-                if track_description:
-                    track_name = track_description[1].decode()
-                    print(f"Track {i}: {track_name}")
-                    self.subtitle_tracks_menu.add_command(
-                        label=track_name,
-                        command=lambda id=i: self.media_player.video_set_spu(id)
-                    )
+            for i, track in enumerate(tracks):
+                track_name = track.decode() if isinstance(track, bytes) else str(track)
+                self.subtitle_tracks_menu.add_command(
+                    label=track_name,
+                    command=lambda id=i: self.set_subtitle_track(id)
+                )
     
+    def update_audio_tracks_menu(self):
+        self.audio_tracks_menu.delete(0, 'end')
+        
+        tracks = self.media_player.audio_get_track_description()
+        if not tracks:
+            self.audio_tracks_menu.add_command(label="No audio tracks available", state='disabled')
+        else:
+            for i, track in enumerate(tracks):
+                track_name = track.decode() if isinstance(track, bytes) else str(track)
+                self.audio_tracks_menu.add_command(
+                    label=track_name,
+                    command=lambda id=i: self.set_audio_track(id)
+                )
+
+    def set_audio_track(self, track_id):
+        self.media_player.audio_set_track(track_id)
+        track_name = self.media_player.audio_get_track_description()[track_id][1].decode()
+        print(f"Switched to audio track: {track_name}")
+
+    def set_subtitle_track(self, track_id):
+        self.media_player.video_set_spu(track_id)
+        self.show_subtitles.set(True)
+        self.default_subtitle_track = track_id
+        if track_id == -1:
+            print("Subtitles disabled")
+        else:
+            track_name = self.media_player.video_get_spu_description()[track_id][1].decode()
+            print(f"Switched to subtitle track: {track_name}")
+        
     # App Settings Methods
     def toggle_always_on_top(self):
         self.window.attributes('-topmost', self.always_on_top.get())
@@ -764,6 +801,16 @@ class MediaPlayer:
         self.subtitle_tracks_menu = tk.Menu(subtitle_menu, tearoff=0)
         subtitle_menu.add_cascade(label="Select Subtitle Track", menu=self.subtitle_tracks_menu)
         self.subtitle_tracks_menu.add_command(label="No media loaded", state='disabled')
+         # Add Audio menu
+        audio_menu = tk.Menu(playback_menu, tearoff=0)
+        playback_menu.add_cascade(label="Audio", menu=audio_menu)
+        
+        # Create a submenu for audio tracks
+        self.audio_tracks_menu = tk.Menu(audio_menu, tearoff=0)
+        audio_menu.add_cascade(label="Select Audio Track", menu=self.audio_tracks_menu)
+
+        # Initialize with "No media loaded" or similar
+        self.audio_tracks_menu.add_command(label="No media loaded", state='disabled')
 
         # Options Menu
         options_menu = tk.Menu(menubar, tearoff=0)
