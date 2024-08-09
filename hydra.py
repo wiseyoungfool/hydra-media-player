@@ -644,7 +644,7 @@ class MediaPlayer:
                 track_name = track.decode() if isinstance(track, bytes) else str(track)
                 self.subtitle_tracks_menu.add_command(
                     label=track_name,
-                    command=lambda id=i: self.set_subtitle_track(id)
+                    command=lambda id=track[0]: self.set_subtitle_track(id,i)
                 )
     
     def update_audio_tracks_menu(self):
@@ -658,22 +658,22 @@ class MediaPlayer:
                 track_name = track.decode() if isinstance(track, bytes) else str(track)
                 self.audio_tracks_menu.add_command(
                     label=track_name,
-                    command=lambda id=i: self.set_audio_track(id)
+                    command=lambda id=track[0]: self.set_audio_track(id,i)
                 )
 
-    def set_audio_track(self, track_id):
+    def set_audio_track(self, track_id, index=1):
         self.media_player.audio_set_track(track_id)
-        track_name = self.media_player.audio_get_track_description()[track_id][1].decode()
+        track_name = self.media_player.audio_get_track_description()[index][1].decode()
         print(f"Switched to audio track: {track_name}")
 
-    def set_subtitle_track(self, track_id):
+    def set_subtitle_track(self, track_id, index=1):
         self.media_player.video_set_spu(track_id)
         self.show_subtitles.set(True)
         self.default_subtitle_track = track_id
         if track_id == -1:
             print("Subtitles disabled")
         else:
-            track_name = self.media_player.video_get_spu_description()[track_id][1].decode()
+            track_name = self.media_player.video_get_spu_description()[index][1].decode()
             print(f"Switched to subtitle track: {track_name}")
         
     # App Settings Methods
