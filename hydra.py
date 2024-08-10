@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk, simpledialog
 import tkinter.dnd as dnd
+from PIL import Image, ImageTk
 import vlc
 import os
 import json
@@ -10,6 +11,7 @@ import sys
 import librosa
 import pyloudnorm as pyln
 import numpy as np
+
 
 import threading
 #from pyAudioAnalysis import audioBasicIO
@@ -111,41 +113,61 @@ class MediaPlayer:
         # Load existing playlists
         self.load_playlists()
 
-        # Add track label
-        self.track_label = ttk.Label(self.window, text="No track playing", relief=tk.SUNKEN)
-        self.track_label.pack(fill=tk.X, pady=5)
+        # Load and resize images
+        self.play_icon = Image.open("images/play.png").resize((30, 30))
+        self.pause_icon = Image.open("images/pause.png").resize((30, 30))
+        self.next_icon = Image.open("images/next.png").resize((30, 30))
+        self.back_icon = Image.open("images/back.png").resize((30, 30))
+        self.stop_icon = Image.open("images/stop.png").resize((30, 30))
 
-        # Add time label
-        self.time_label = ttk.Label(self.window, text="00:00 / 00:00")
-        self.time_label.pack(pady=5)
-
-        # Add progress bar
-        self.progress = ttk.Progressbar(self.window, orient=tk.HORIZONTAL, length=600, mode='determinate')
-        self.progress.bind("<Button-1>", self.seek)
-        self.progress.pack(pady=10)
+        # Convert to PhotoImage
+        self.play_icon = ImageTk.PhotoImage(self.play_icon)
+        self.pause_icon = ImageTk.PhotoImage(self.pause_icon)
+        self.next_icon = ImageTk.PhotoImage(self.next_icon)
+        self.back_icon = ImageTk.PhotoImage(self.back_icon)
+        self.stop_icon = ImageTk.PhotoImage(self.stop_icon)
 
         # Create button controls
         controls_frame = ttk.Frame(self.window)
         controls_frame.pack()
 
-        self.play_pause_button = ttk.Button(controls_frame, text="Play", command=self.toggle_play_pause, takefocus=False)
+        media_info_frame = ttk.Frame(controls_frame)
+        media_info_frame.pack()
+
+        # Add track label
+        self.track_label = ttk.Label(media_info_frame, text="No track playing")
+        self.track_label.pack(fill=tk.X, pady=5)
+
+        # Add time label
+        self.time_label = ttk.Label(media_info_frame, text="00:00 / 00:00")
+        self.time_label.pack(pady=5)
+
+        # Add progress bar
+        self.progress = ttk.Progressbar(media_info_frame, orient=tk.HORIZONTAL, length=600, mode='determinate')
+        self.progress.bind("<Button-1>", self.seek)
+        self.progress.pack(pady=10)
+
+        media_buttons_frame = ttk.Frame(controls_frame)
+        media_buttons_frame.pack()
+
+        self.play_pause_button = ttk.Button(media_buttons_frame, text="Play", image=self.play_icon, command=self.toggle_play_pause, takefocus=False)
         self.play_pause_button.grid(row=0, column=0, padx=10)
 
-        self.previous_button = ttk.Button(controls_frame, text="Previous", command=self.previous_song, takefocus=False)
+        self.previous_button = ttk.Button(media_buttons_frame, text="Previous", image=self.back_icon, command=self.previous_song, takefocus=False)
         self.previous_button.grid(row=0, column=1, padx=10)
 
-        self.next_button = ttk.Button(controls_frame, text="Next", command=self.next_song, takefocus=False)
+        self.next_button = ttk.Button(media_buttons_frame, text="Next", image=self.next_icon, command=self.next_song, takefocus=False)
         self.next_button.grid(row=0, column=2, padx=10)
 
-        self.stop_button = ttk.Button(controls_frame, text="Stop", command=self.stop, takefocus=False)
+        self.stop_button = ttk.Button(media_buttons_frame, text="Stop", image=self.stop_icon, command=self.stop, takefocus=False)
         self.stop_button.grid(row=0, column=3, padx=10)
 
-        self.volume_slider = tk.Scale(controls_frame, from_=0, to=100, orient=tk.HORIZONTAL, label='Volume', command=self.set_volume, takefocus=False)
+        self.volume_slider = tk.Scale(media_buttons_frame, from_=0, to=100, orient=tk.HORIZONTAL, label='Volume', command=self.set_volume, takefocus=False)
         self.volume_slider.set(DEFAULT_VOLUME)
         self.volume_slider.grid(row=0, column=4, padx=10)
 
         # Create media settings
-        media_settings_frame = ttk.Frame(self.window)
+        media_settings_frame = ttk.Frame(controls_frame)
         media_settings_frame.pack()
 
         self.shuffle = tk.BooleanVar(media_settings_frame, False)
@@ -242,7 +264,8 @@ class MediaPlayer:
             else:
                 self.play()
             self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
-    
+
+        self.update_play_pause_button()
         self.window.focus_set()
 
     def play_selected_file(self, event):
@@ -254,9 +277,9 @@ class MediaPlayer:
 
     def update_play_pause_button(self):
         if self.media_player.is_playing():
-            self.play_pause_button.config(text="Pause")
+            self.play_pause_button.config(text="Pause", image=self.pause_icon)
         else:
-            self.play_pause_button.config(text="Play")
+            self.play_pause_button.config(text="Play", image=self.play_icon)
     
     def stop(self):
         self.media_player.stop()
@@ -684,28 +707,41 @@ class MediaPlayer:
         self.style = ttk.Style()
         if self.dark_mode.get():
             self.style.theme_use('clam')
-            self.window.configure(bg='#2E2E2E')
-            self.style.configure('.', background='#2E2E2E', foreground='white')
-            self.style.configure('TButton', background='#4D4D4D', foreground='white')
-            self.style.map('TButton', background=[('active', '#6E6E6E')])
-            self.style.configure('TFrame', background='#2E2E2E')
-            self.playlist.configure(bg='#4D4D4D', fg='white', selectbackground='#6E6E6E', selectforeground='white')
-            self.volume_slider.configure(bg='#2E2E2E', fg='white', troughcolor='#4D4D4D')
-            self.style.map('TCheckbutton',
-                       background=[('active', '#4D4D4D')],
-                       foreground=[('active', 'white')])
+            self.window.configure(bg='#121212')  # Darker background for modern look
+            self.style.configure('.', background='#121212', foreground='white', font=('Helvetica', 10))
+            self.style.configure('TButton', background='#333333', foreground='white', borderwidth=0, relief='flat')
+            self.style.map('TButton', background=[('active', '#555555')])
+            self.style.configure('TFrame', background='#1E1E1E')
+            self.style.configure('TNotebook', background='#121212', foreground='white')
+            self.style.configure('TNotebook.Tab', background='#1E1E1E', foreground='white', padding=[10, 5])
+            self.style.map('TNotebook.Tab', background=[('selected', '#333333')], foreground=[('selected', 'white')])
+            self.playlist.configure(bg='#333333', fg='white', selectbackground='#555555', selectforeground='white', highlightthickness=0)
+            self.collections_listbox.configure(bg='#333333', fg='white', selectbackground='#555555', selectforeground='white', highlightthickness=0)
+            self.volume_slider.configure(bg='#1E1E1E', fg='white', troughcolor='#00FF00', highlightthickness=0)
+            self.style.configure('TCheckbutton', background='#1E1E1E', foreground='white')
+            self.style.map('TCheckbutton', background=[('active', '#333333')], foreground=[('active', 'white')])
+            self.style.configure('TProgressbar', troughcolor='#333333', background='#00FF00', thickness=10)
+            #self.progress.configure(style='TProgressbar', length=200, mode='determinate')
         else:
             self.style.theme_use('default')
             self.window.configure(bg='#f7f7f7')
-            self.style.configure('.', background='white', foreground='black')
-            self.style.configure('TButton', background='#e1e1e1', foreground='black')
+            self.style.configure('.', background='white', foreground='black', font=('Helvetica', 10))
+            self.style.configure('TButton', background='#e1e1e1', foreground='black', borderwidth=0, relief='flat')
             self.style.map('TButton', background=[('active', '#d1d1d1')])
             self.style.configure('TFrame', background='#f7f7f7')
-            self.playlist.configure(bg='white', fg='black', selectbackground='#D3D3D3', selectforeground='black')
-            self.volume_slider.configure(bg='#f7f7f7', fg='black', troughcolor='#e1e1e1')
-            self.style.map('TCheckbutton',
-                       background=[('active', '#e1e1e1')],
-                       foreground=[('active', 'black')])
+            self.style.configure('TNotebook', background='#f7f7f7', foreground='black')
+            self.style.configure('TNotebook.Tab', background='#e1e1e1', foreground='black', padding=[10, 5])
+            self.style.map('TNotebook.Tab', background=[('selected', '#d1d1d1')], foreground=[('selected', 'black')])
+            self.playlist.configure(bg='white', fg='black', selectbackground='#D3D3D3', selectforeground='black', highlightthickness=0)
+            self.collections_listbox.configure(bg='white', fg='black', selectbackground='#D3D3D3', selectforeground='black', highlightthickness=0)
+            self.volume_slider.configure(bg='#f7f7f7', fg='black', troughcolor='#00FF00', highlightthickness=0)
+            self.style.configure('TCheckbutton', background='#f7f7f7', foreground='black')
+            self.style.map('TCheckbutton', background=[('active', '#e1e1e1')], foreground=[('active', 'black')])
+            self.style.configure('TProgressbar', troughcolor='#e1e1e1', background='#00FF00', thickness=10)
+            #self.progress.configure(style='TProgressbar', length=200, mode='determinate')
+
+
+
             
      # View Menu Methods
 
