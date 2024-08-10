@@ -379,7 +379,7 @@ class MediaPlayer:
         self.window.bind_all("<Control-l>", self.load_playlist)
         self.window.bind_all("<f>", self.toggle_fullscreen)
         self.window.bind_all("<c>", self.toggle_subtitles)
-        self.window.bind_all("<Escape>", self.disable_fullscreen)
+        self.video_window.bind("<Escape>", self.disable_fullscreen)
 
         # Bind playlist shortcuts
         self.playlist.bind('<Double-1>', self.play_selected_file)
@@ -631,6 +631,7 @@ class MediaPlayer:
         if not is_playing:
             self.window.after(500,self.pause)
         self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
+        self.window.after(500, self.toggle_subtitles)
         print("Fullscreen:", self.fullscreen.get())
 
     def toggle_fullscreen(self, event=None):
@@ -679,12 +680,12 @@ class MediaPlayer:
         if not tracks:
             self.subtitle_tracks_menu.add_command(label="No subtitles available", state='disabled')
         else:
-            self.subtitle_tracks_menu.add_command(label="Disable subtitles", command=lambda: self.media_player.video_set_spu(-1))
-            for i, track in enumerate(tracks):
-                track_name = track.decode() if isinstance(track, bytes) else str(track)
+            #self.subtitle_tracks_menu.add_command(label="Disable subtitles", command=lambda: self.set_subtitle_track(-1))
+            for track in tracks:
+                track_id, track_name = track[0], track[1].decode() if isinstance(track[1], bytes) else str(track[1])
                 self.subtitle_tracks_menu.add_command(
                     label=track_name,
-                    command=lambda id=track[0]: self.set_subtitle_track(id,i)
+                    command=lambda id=track_id, name=track_name: self.set_subtitle_track(id, name)
                 )
     
     def update_audio_tracks_menu(self):
@@ -694,28 +695,26 @@ class MediaPlayer:
         if not tracks:
             self.audio_tracks_menu.add_command(label="No audio tracks available", state='disabled')
         else:
-            for i, track in enumerate(tracks):
-                track_name = track.decode() if isinstance(track, bytes) else str(track)
+            for track in tracks:
+                track_id, track_name = track[0], track[1].decode() if isinstance(track[1], bytes) else str(track[1])
                 self.audio_tracks_menu.add_command(
                     label=track_name,
-                    command=lambda id=track[0]: self.set_audio_track(id,i)
+                    command=lambda id=track_id, name=track_name: self.set_audio_track(id,name)
                 )
 
-    def set_audio_track(self, track_id, index=1):
+    def set_audio_track(self, track_id, track_name=None):
         self.media_player.audio_set_track(track_id)
-        track_name = self.media_player.audio_get_track_description()[index][1].decode()
         print(f"Switched to audio track: {track_name}")
 
-    def set_subtitle_track(self, track_id, index=1):
+    def set_subtitle_track(self, track_id, track_name=None):
         self.media_player.video_set_spu(track_id)
         self.show_subtitles.set(True)
         self.default_subtitle_track = track_id
         if track_id == -1:
             print("Subtitles disabled")
         else:
-            track_name = self.media_player.video_get_spu_description()[index][1].decode()
             print(f"Switched to subtitle track: {track_name}")
-        
+            
     # App Settings Methods
     def toggle_always_on_top(self):
         self.window.attributes('-topmost', self.always_on_top.get())
