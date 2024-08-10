@@ -131,60 +131,67 @@ class MediaPlayer:
         controls_frame = ttk.Frame(self.window)
         controls_frame.pack()
 
+        # Media info frame
         media_info_frame = ttk.Frame(controls_frame)
-        media_info_frame.pack()
+        media_info_frame.pack(fill=tk.X)
 
-        # Add track label
-        self.track_label = ttk.Label(media_info_frame, text="No track playing")
-        self.track_label.pack(fill=tk.X, pady=5)
-
-        # Add time label
-        self.time_label = ttk.Label(media_info_frame, text="00:00 / 00:00")
-        self.time_label.pack(pady=5)
+        # Add track and time labels in the same row
+        info_frame = ttk.Frame(media_info_frame)
+        info_frame.pack(fill=tk.X)
+        self.track_label = ttk.Label(info_frame, text="No track playing", anchor='w')
+        self.track_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.time_label = ttk.Label(info_frame, text="00:00 / 00:00", anchor='e')
+        self.time_label.pack(side=tk.RIGHT)
 
         # Add progress bar
         self.progress = ttk.Progressbar(media_info_frame, orient=tk.HORIZONTAL, length=600, mode='determinate')
         self.progress.bind("<Button-1>", self.seek)
-        self.progress.pack(pady=10)
+        self.progress.pack(fill=tk.X, pady=(5, 10))
 
+        # Media buttons frame
         media_buttons_frame = ttk.Frame(controls_frame)
-        media_buttons_frame.pack()
+        media_buttons_frame.pack(fill=tk.X)
 
-        self.play_pause_button = ttk.Button(media_buttons_frame, text="Play", image=self.play_icon, command=self.toggle_play_pause, takefocus=False)
-        self.play_pause_button.grid(row=0, column=0, padx=10)
+        # Create buttons
+        self.play_pause_button = ttk.Button(media_buttons_frame, image=self.play_icon, command=self.toggle_play_pause, takefocus=False)
+        self.play_pause_button.pack(side=tk.LEFT, padx=2)
 
-        self.previous_button = ttk.Button(media_buttons_frame, text="Previous", image=self.back_icon, command=self.previous_song, takefocus=False)
-        self.previous_button.grid(row=0, column=1, padx=10)
+        self.previous_button = ttk.Button(media_buttons_frame, image=self.back_icon, command=self.previous_song, takefocus=False)
+        self.previous_button.pack(side=tk.LEFT, padx=2)
 
-        self.next_button = ttk.Button(media_buttons_frame, text="Next", image=self.next_icon, command=self.next_song, takefocus=False)
-        self.next_button.grid(row=0, column=2, padx=10)
+        self.next_button = ttk.Button(media_buttons_frame, image=self.next_icon, command=self.next_song, takefocus=False)
+        self.next_button.pack(side=tk.LEFT, padx=2)
 
-        self.stop_button = ttk.Button(media_buttons_frame, text="Stop", image=self.stop_icon, command=self.stop, takefocus=False)
-        self.stop_button.grid(row=0, column=3, padx=10)
+        self.stop_button = ttk.Button(media_buttons_frame, image=self.stop_icon, command=self.stop, takefocus=False)
+        self.stop_button.pack(side=tk.LEFT, padx=2)
 
-        self.volume_slider = tk.Scale(media_buttons_frame, from_=0, to=100, orient=tk.HORIZONTAL, label='Volume', command=self.set_volume, takefocus=False)
+        # Volume slider
+        self.volume_slider = ttk.Scale(media_buttons_frame, from_=0, to=100, orient=tk.HORIZONTAL, command=self.set_volume, takefocus=False)
         self.volume_slider.set(DEFAULT_VOLUME)
-        self.volume_slider.grid(row=0, column=4, padx=10)
+        self.volume_slider.pack(side=tk.RIGHT, padx=(10, 0), fill=tk.X, expand=False)
+        self.volume_label = ttk.Label(media_buttons_frame, text='Volume: 100%')
+        self.volume_label.pack(side=tk.RIGHT, padx=5)
 
-        # Create media settings
+        # Media settings frame
         media_settings_frame = ttk.Frame(controls_frame)
-        media_settings_frame.pack()
+        media_settings_frame.pack(fill=tk.X, pady=(10, 0))
 
+        # Create media settings buttons
         self.shuffle = tk.BooleanVar(media_settings_frame, False)
         self.shuffle_button = ttk.Checkbutton(media_settings_frame, text="Shuffle", variable=self.shuffle, command=self.toggle_shuffle, takefocus=False)
-        self.shuffle_button.grid(row=0, column=0)
+        self.shuffle_button.pack(side=tk.RIGHT, padx=5)
 
         self.repeat_one = tk.BooleanVar(media_settings_frame, False)
         self.repeat_one_button = ttk.Checkbutton(media_settings_frame, text="Repeat One", variable=self.repeat_one, command=self.toggle_repeat_one, takefocus=False)
-        self.repeat_one_button.grid(row=0, column=1)
+        self.repeat_one_button.pack(side=tk.RIGHT, padx=5)
 
         self.repeat_all = tk.BooleanVar(media_settings_frame, False)
-        self.repeat_all_button = ttk.Checkbutton(media_settings_frame, text="Repeat All", variable=self.repeat_all, command=self.toggle_repeat_one, takefocus=False)
-        self.repeat_all_button.grid(row=0, column=2)
+        self.repeat_all_button = ttk.Checkbutton(media_settings_frame, text="Repeat All", variable=self.repeat_all, command=self.toggle_repeat_all, takefocus=False)
+        self.repeat_all_button.pack(side=tk.RIGHT, padx=5)
 
         self.fullscreen = tk.BooleanVar(media_settings_frame, False)
         self.fullscreen_button = ttk.Checkbutton(media_settings_frame, text="Fullscreen", variable=self.fullscreen, command=self.set_fullscreen, takefocus=False)
-        self.fullscreen_button.grid(row=0, column=3)
+        self.fullscreen_button.pack(side=tk.RIGHT, padx=5)
 
         #Analysis controls
         self.analyze_button = ttk.Button(self.analysis_frame, text="Analyze Audio", command=self.perform_audio_analysis, takefocus=False)
@@ -343,7 +350,9 @@ class MediaPlayer:
         self.window.after(0,self.next_song) # call next_song on tkinter's main thread to prevent crashes
     
     def set_volume(self, volume):
-        self.media_player.audio_set_volume(int(volume))
+        vol = int(float(volume))
+        self.media_player.audio_set_volume(vol)
+        self.volume_label.config(text=f"Volume: {vol}%")
 
     def increase_volume(self, event=None):
         current_volume = self.volume_slider.get()
@@ -370,6 +379,7 @@ class MediaPlayer:
         self.window.bind_all("<Control-l>", self.load_playlist)
         self.window.bind_all("<f>", self.toggle_fullscreen)
         self.window.bind_all("<c>", self.toggle_subtitles)
+        self.window.bind_all("<Escape>", self.disable_fullscreen)
 
         # Bind playlist shortcuts
         self.playlist.bind('<Double-1>', self.play_selected_file)
@@ -606,6 +616,7 @@ class MediaPlayer:
 
     def set_fullscreen(self, event=None):
         time_spot = self.media_player.get_time()
+        is_playing = self.media_player.is_playing()
         self.stop()
         if self.fullscreen.get():
             self.detach_video()
@@ -617,12 +628,18 @@ class MediaPlayer:
         self.window.update()
         self.media_player.play()
         self.media_player.set_time(time_spot)
+        if not is_playing:
+            self.window.after(500,self.pause)
         self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
         print("Fullscreen:", self.fullscreen.get())
 
     def toggle_fullscreen(self, event=None):
         self.fullscreen.set(not self.fullscreen.get())
         self.set_fullscreen()
+
+    def disable_fullscreen(self):
+        if self.fullscreen.get():
+            self.set_fullscreen()
 
     def embed_video(self):
         if sys.platform.startswith('linux'):
@@ -717,7 +734,7 @@ class MediaPlayer:
             self.style.map('TNotebook.Tab', background=[('selected', '#333333')], foreground=[('selected', 'white')])
             self.playlist.configure(bg='#333333', fg='white', selectbackground='#555555', selectforeground='white', highlightthickness=0)
             self.collections_listbox.configure(bg='#333333', fg='white', selectbackground='#555555', selectforeground='white', highlightthickness=0)
-            self.volume_slider.configure(bg='#1E1E1E', fg='white', troughcolor='#00FF00', highlightthickness=0)
+            #self.volume_slider.configure(troughcolor='#333333', highlightthickness=0)
             self.style.configure('TCheckbutton', background='#1E1E1E', foreground='white')
             self.style.map('TCheckbutton', background=[('active', '#333333')], foreground=[('active', 'white')])
             self.style.configure('TProgressbar', troughcolor='#333333', background='#00FF00', thickness=10)
@@ -734,7 +751,7 @@ class MediaPlayer:
             self.style.map('TNotebook.Tab', background=[('selected', '#d1d1d1')], foreground=[('selected', 'black')])
             self.playlist.configure(bg='white', fg='black', selectbackground='#D3D3D3', selectforeground='black', highlightthickness=0)
             self.collections_listbox.configure(bg='white', fg='black', selectbackground='#D3D3D3', selectforeground='black', highlightthickness=0)
-            self.volume_slider.configure(bg='#f7f7f7', fg='black', troughcolor='#00FF00', highlightthickness=0)
+            #self.volume_slider.configure(troughcolor='#333333', highlightthickness=0)
             self.style.configure('TCheckbutton', background='#f7f7f7', foreground='black')
             self.style.map('TCheckbutton', background=[('active', '#e1e1e1')], foreground=[('active', 'black')])
             self.style.configure('TProgressbar', troughcolor='#e1e1e1', background='#00FF00', thickness=10)
