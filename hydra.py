@@ -32,6 +32,7 @@ class MediaPlayer:
         self.can_save_interval = True
         self.show_playlist = tk.BooleanVar(value=True)
         self.current_file = None
+        self.current_playlist = None
         self.show_subtitles = tk.BooleanVar(value=True)
         
         # Create settings controls
@@ -95,6 +96,9 @@ class MediaPlayer:
         self.remove_button = ttk.Button(playlist_buttons_frame,text="Remove",command=self.remove_song, takefocus=False)
         self.remove_button.grid(row=0, column=1, padx=10)
 
+        self.clear_button = ttk.Button(playlist_buttons_frame,text="Clear",command=self.clear_playlist, takefocus=False)
+        self.clear_button.grid(row=0, column=2, padx=10)
+
         # Create listbox for playlists
         self.collections_listbox = tk.Listbox(self.collections_frame, width=50)
         self.collections_listbox.pack(pady=10, padx=10, fill=tk.BOTH, expand=True)
@@ -107,7 +111,7 @@ class MediaPlayer:
         self.open_playlist_button = ttk.Button(collection_buttons_frame, text="Open", command=self.load_selected_playlist, takefocus=False)
         self.open_playlist_button.grid(row=0, column=0, padx=5)
 
-        self.save_playlist_button = ttk.Button(collection_buttons_frame, text="Save", command=self.save_current_playlist_as, takefocus=False)
+        self.save_playlist_button = ttk.Button(collection_buttons_frame, text="Save", command=self.save_playlist, takefocus=False)
         self.save_playlist_button.grid(row=0, column=1, padx=5)
 
         # Load existing playlists
@@ -215,7 +219,7 @@ class MediaPlayer:
         self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         # Load Last playlist
-        self.load_last_playlist()
+        self.load_last_used_playlist()
         self.default_subtitle_track = self.media_player.video_get_spu()
         print(self.media_player.video_get_spu())
 
@@ -239,7 +243,7 @@ class MediaPlayer:
             media.parse()
             self.media_player.set_media(media)
             self.media_player.play()
-            self.track_label.config(text=os.path.basename(selected_song))
+            self.update_media_label()
             self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
 
             # Go to video frame if playing video
@@ -260,7 +264,8 @@ class MediaPlayer:
     def pause(self):
         self.media_player.pause()
         self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
-        self.save_current_playlist()
+        self.save_playlist('last_playlist')
+        self.save_playlist(self.current_playlist)
 
     def toggle_play_pause(self, event=None):
         if self.media_player.is_playing():
@@ -412,10 +417,10 @@ class MediaPlayer:
         self.update_play_pause_button()
         if round(current_time) % 10 == 0:
             if self.can_save_interval:
-                self.save_current_playlist()
+                self.save_playlist('last_playlist')
+                self.save_playlist(self.current_playlist)
                 self.can_save_interval = False;
                 self.window.after(2000, self.reset_interval)
-            #self.window.after(1000,self.save_current_playlist)
 
         if self.media_player.is_playing():
             self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)  # Update every interval
@@ -444,29 +449,6 @@ class MediaPlayer:
         selected_index = self.playlist.curselection()[0]
         self.playlist.delete(selected_index)
 
-    def save_playlist(self):
-        playlist = self.playlist.get(0, tk.END)
-        if playlist:
-            file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON Files", "*.json")])
-            if file_path:
-                with open(file_path, 'w') as f:
-                    json.dump(playlist, f)
-                messagebox.showinfo("Success", "Playlist saved successfully")
-        else:
-            messagebox.showerror("Error", "No songs in the playlist")
-
-    def load_playlist(self, file_path = None):
-        if file_path == None:
-            file_path = filedialog.askopenfilename(defaultextension=".json", filetypes=[("JSON Files", "*.json")])
-        
-        if file_path:
-            with open(file_path, 'r') as f:
-                playlist = json.load(f)
-            self.playlist.delete(0, tk.END)
-            for song in playlist:
-                self.playlist.insert(tk.END, song)
-            messagebox.showinfo("Success", "Playlist loaded successfully")
-
     def create_playlist_from_folder(self):
         folder = filedialog.askdirectory()
         if folder:
@@ -478,36 +460,56 @@ class MediaPlayer:
             #messagebox.showinfo("Playlist Created", f"Playlist created with {len(playlist)} files")
 
     def on_closing(self):
-        self.save_current_playlist()
+        self.save_playlist("last_playlist")
+        self.save_playlist(self.current_playlist)
         self.window.destroy()
-
 
     def on_media_changed(self, event=None):
         print("Media changed, updating tracks")
         self.window.after(2000, self.update_subtitle_tracks_menu)
         self.window.after(2000, self.update_audio_tracks_menu)
         
-    def save_current_playlist(self):
-        try:
-            last_playlist = {
-                "playlist": list(self.playlist.get(0, tk.END)),
-                "file": self.current_file,
-                "index": self.playlist.curselection()[0],
-                "position": self.media_player.get_time() if self.current_file else 0
-            }
+    def save_playlist(self, playlist_name=None):
+        if playlist_name==None:
+            playlist_name = simpledialog.askstring("Save Playlist", "Enter playlist name:")
+        if playlist_name:
+            file_path = os.path.join("playlists", f"{playlist_name}.json")
             try:
-                with open("last_playlist.json", 'w') as f:
-                    json.dump(last_playlist, f)
-                    print(f"Current Playlist saved.")
-            except IOError as e:
-                print(f"Error saving playlist: {e}")
-        except IndexError:
-            print("No playlist to save")
+                # Write the playlist metadata
+                playlist = {
+                    "playlist": list(self.playlist.get(0, tk.END)),
+                    "file": self.current_file,
+                    "index": self.playlist.curselection()[0],
+                    "position": self.media_player.get_time() if self.current_file else 0,
+                    "name": playlist_name
+                }
+                try:
+                    # Save the playlist
+                    with open(file_path, 'w') as f:
+                        json.dump(playlist, f)
+                        self.load_playlists()  # Refresh the collections list
+                        print(f"Playlist saved: {playlist_name}")
+                    
+                    # Save the name of the current playlist in seperate file
+                    with open("last_used_playlist.json", 'w') as f:
+                        json.dump({"last_playlist": self.current_playlist}, f)
+
+                    print(f"Current Playlist: {self.current_playlist}")
+
+                except IOError as e:
+                    print(f"Error saving playlist: {e}")
+            except IndexError:
+                print("No playlist to save")
      
-    def load_last_playlist(self):
-        if os.path.exists("last_playlist.json"):
+    def load_playlist(self, playlist_name=None):
+        if playlist_name:
+            file_path = os.path.join("playlists", f"{playlist_name}.json")
+        else:
+            file_path = filedialog.askopenfilename(defaultextension=".json", filetypes=[("JSON Files", "*.json")])
+
+        if os.path.exists(file_path):
             try:
-                with open("last_playlist.json", 'r') as f:
+                with open(file_path, 'r') as f:
                     saved_data = json.load(f)
                 
                 # Load playlist
@@ -526,8 +528,13 @@ class MediaPlayer:
                     self.playlist.selection_clear(0, tk.END)
                     if index is not None:
                         self.playlist.activate(index)
-                        self.playlist.selection_set(index)
+                        self.playlist.selection_set(index) 
                         
+                    # Update UI
+                    self.current_playlist = playlist_name
+                    print(f"Playlist Loaded: {playlist_name}")
+                    print(f"Current Playlist: {self.current_playlist}")
+                    self.update_media_label()
 
                     # Start playing, then immediately pause to get around vlc's timelag weirdness when loading last position...
                     volume = self.media_player.audio_get_volume()
@@ -540,9 +547,6 @@ class MediaPlayer:
                     self.set_volume(volume)
                     self.media_player.set_time(int(position)) # reset volume and position back to what they were
 
-                    # Update UI
-                    self.track_label.config(text=os.path.basename(self.current_file))
-
                 else:
                     print("Last played file not found or no file was playing")
 
@@ -550,9 +554,18 @@ class MediaPlayer:
                 print(f"Error loading playlist: {e}")
     
     def clear_playlist(self):
+        self.stop()
         self.playlist.delete(0, tk.END)
         self.track_label.config(text="Playlist Empty")
+        self.current_playlist = None
         self.update_progress_bar()
+
+    def update_media_label(self):
+        if self.current_playlist == None:
+            playlist_text = 'Unsaved Playlist'
+        else:
+            playlist_text = self.current_playlist
+        self.track_label.config(text=f'{playlist_text} - ' + os.path.basename(self.current_file))
 
     def load_playlists(self):
         playlist_dir = "playlists"
@@ -562,23 +575,33 @@ class MediaPlayer:
         playlists = [f for f in os.listdir(playlist_dir) if f.endswith('.json')]
         self.collections_listbox.delete(0, tk.END)
         for playlist in playlists:
-            self.collections_listbox.insert(tk.END, playlist[:-5])  # Remove .json extension
+            if not playlist.endswith('last_playlist.json'):
+                self.collections_listbox.insert(tk.END, playlist[:-5])  # Remove .json extension
 
     def load_selected_playlist(self, event=None):
         selection = self.collections_listbox.curselection()
         if selection:
             playlist_name = self.collections_listbox.get(selection[0])
-            file_path = os.path.join("playlists", f"{playlist_name}.json")
-            self.load_playlist(file_path)
-    
-    def save_current_playlist_as(self):
-        playlist_name = simpledialog.askstring("Save Playlist", "Enter playlist name:")
-        if playlist_name:
-            file_path = os.path.join("playlists", f"{playlist_name}.json")
-            playlist = list(self.playlist.get(0, tk.END))
-            with open(file_path, 'w') as f:
-                json.dump(playlist, f)
-            self.load_playlists()  # Refresh the collections list
+            self.load_playlist(playlist_name)
+
+    def load_last_used_playlist(self):
+        last_playlist_file = "last_used_playlist.json"
+        if os.path.exists(last_playlist_file):
+            try:
+                with open(last_playlist_file, 'r') as f:
+                    data = json.load(f)
+                    last_playlist_name = data.get("last_playlist")
+                    if last_playlist_name:
+                        self.load_playlist(last_playlist_name)
+                        print('Last playlist found, loading last playlist')
+                        return
+            except (json.JSONDecodeError, IOError) as e:
+                print(f"Error loading last used playlist: {e}")
+        
+        # Fallback to loading "last_playlist" if no last used playlist is found
+        self.load_playlist("last_playlist")
+        print('Last playlist not found, backup loaded')
+
 
     # Drag and Drop Playlist methods
     def drag_start(self, event):
@@ -901,7 +924,6 @@ class MediaPlayer:
         self.analyze_button.config(text="Analyzing...")
         threading.Thread(target=self._run_analysis, daemon=True).start()
         
-
     def _run_analysis(self):
         # Load the audio file
         y, sr = librosa.load(self.current_file)
@@ -933,7 +955,6 @@ class MediaPlayer:
         # Update the UI in the main thread
         self.window.after(0, self.update_analysis_display, tempo, key, loudness, rms, spectral_centroid, spectral_rolloff)
     
-
     def update_analysis_display(self, tempo, key, loudness, rms, spectral_centroid, spectral_rolloff):
         self.analyze_button.config(text="Analyze Audio")
         

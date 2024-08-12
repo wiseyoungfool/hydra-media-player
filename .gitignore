@@ -2,3 +2,4 @@ last_playlist.json
 playlists/*
 !/playlists/
 !playlists/saved playlists go here.txt
+last_used_playlist.json
