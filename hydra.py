@@ -664,6 +664,8 @@ class MediaPlayer:
     def set_fullscreen(self, event=None):
         time_spot = self.media_player.get_time()
         is_playing = self.media_player.is_playing()
+        subtitle_track = self.media_player.video_get_spu()
+        audio_track = self.media_player.audio_get_track()
         self.stop()
         if self.fullscreen.get():
             self.detach_video()
@@ -678,7 +680,9 @@ class MediaPlayer:
         if not is_playing:
             self.window.after(500,self.pause)
         self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
-        self.window.after(500, self.toggle_subtitles)
+        time.sleep(.5)
+        self.set_audio_track(audio_track)
+        self.set_subtitle_track(subtitle_track)
         print("Fullscreen:", self.fullscreen.get())
 
     def toggle_fullscreen(self, event=None):
