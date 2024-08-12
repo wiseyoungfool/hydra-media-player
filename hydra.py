@@ -243,7 +243,6 @@ class MediaPlayer:
             media.parse()
             self.media_player.set_media(media)
             self.media_player.play()
-            self.update_media_label()
             self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
 
             # Go to video frame if playing video
@@ -254,6 +253,7 @@ class MediaPlayer:
 
             self.current_file = selected_song
             self.next_button.config(state='enabled')
+            self.update_media_label()
         except IndexError as e:
             messagebox.showerror("Error", str(e))
         except FileNotFoundError as e:
@@ -261,11 +261,12 @@ class MediaPlayer:
         except Exception as e:
             messagebox.showerror("Error", f"An unexpected error occurred: {e}")
 
-    def pause(self):
+    def pause(self, save=True):
         self.media_player.pause()
         self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_progress_bar)
-        self.save_playlist('last_playlist')
-        self.save_playlist(self.current_playlist)
+        if save==True:
+            self.save_playlist('last_playlist', autosave=True)
+            self.save_playlist(self.current_playlist, autosave=True)
 
     def toggle_play_pause(self, event=None):
         if self.media_player.is_playing():
@@ -384,6 +385,7 @@ class MediaPlayer:
         self.window.bind_all("<Control-l>", self.load_playlist)
         self.window.bind_all("<f>", self.toggle_fullscreen)
         self.window.bind_all("<c>", self.toggle_subtitles)
+        self.window.bind_all("<i>", self.print_info)
         self.video_window.bind("<Escape>", self.disable_fullscreen)
 
         # Bind playlist shortcuts
@@ -391,6 +393,13 @@ class MediaPlayer:
         self.playlist.bind('<Button-1>', self.drag_start)
         self.playlist.bind('<B1-Motion>', self.drag_motion)
         self.playlist.bind('<ButtonRelease-1>', self.drag_end)
+
+    def print_info(self, event=None):
+        print(f"Audio Track: {self.media_player.audio_get_track()}")
+        print(f"Subtitle Track: {self.media_player.video_get_spu()}")
+        print(f"Current File: {self.current_file}")
+        print(f"Current Playlist: {self.current_playlist}")
+        print(f"Default Sub Track: {self.default_subtitle_track}")
 
     # Progress Bar Methods
     def seek(self, event):
@@ -417,8 +426,8 @@ class MediaPlayer:
         self.update_play_pause_button()
         if round(current_time) % 10 == 0:
             if self.can_save_interval:
-                self.save_playlist('last_playlist')
-                self.save_playlist(self.current_playlist)
+                self.save_playlist('last_playlist', autosave=True)
+                self.save_playlist(self.current_playlist, autosave=True)
                 self.can_save_interval = False;
                 self.window.after(2000, self.reset_interval)
 
@@ -460,7 +469,7 @@ class MediaPlayer:
             #messagebox.showinfo("Playlist Created", f"Playlist created with {len(playlist)} files")
 
     def on_closing(self):
-        self.save_playlist("last_playlist")
+        self.save_playlist("last_playlist", autosave=True)
         self.save_playlist(self.current_playlist)
         self.window.destroy()
 
@@ -469,9 +478,14 @@ class MediaPlayer:
         self.window.after(2000, self.update_subtitle_tracks_menu)
         self.window.after(2000, self.update_audio_tracks_menu)
         
-    def save_playlist(self, playlist_name=None):
-        if playlist_name==None:
+    def save_playlist(self, playlist_name=None, autosave=False):
+        # Get or set playlist name
+        if playlist_name==None and autosave==False:
             playlist_name = simpledialog.askstring("Save Playlist", "Enter playlist name:")
+        elif playlist_name==None:
+            playlist_name='last_playlist'
+
+        # Save playlist
         if playlist_name:
             file_path = os.path.join("playlists", f"{playlist_name}.json")
             try:
@@ -481,7 +495,9 @@ class MediaPlayer:
                     "file": self.current_file,
                     "index": self.playlist.curselection()[0],
                     "position": self.media_player.get_time() if self.current_file else 0,
-                    "name": playlist_name
+                    "name": playlist_name,
+                    "subtitle_track": self.media_player.video_get_spu(),
+                    "audio_track": self.media_player.audio_get_track()
                 }
                 try:
                     # Save the playlist
@@ -489,7 +505,7 @@ class MediaPlayer:
                         json.dump(playlist, f)
                         self.load_playlists()  # Refresh the collections list
                         print(f"Playlist saved: {playlist_name}")
-                    
+
                     # Save the name of the current playlist in seperate file
                     with open("last_used_playlist.json", 'w') as f:
                         json.dump({"last_playlist": self.current_playlist}, f)
@@ -529,7 +545,7 @@ class MediaPlayer:
                     if index is not None:
                         self.playlist.activate(index)
                         self.playlist.selection_set(index) 
-                        
+
                     # Update UI
                     self.current_playlist = playlist_name
                     print(f"Playlist Loaded: {playlist_name}")
@@ -539,14 +555,16 @@ class MediaPlayer:
                     # Start playing, then immediately pause to get around vlc's timelag weirdness when loading last position...
                     volume = self.media_player.audio_get_volume()
                     self.set_volume(0) # mute volume so you don't hear the song playing (has to play in order to set the time...)
-                    self.toggle_play_pause() # play the song
+                    self.play() # play the song
                     self.media_player.set_time(int(position)) #set the position to the saved position
                     self.update_progress_bar()
                     time.sleep(.5) # sleep for half a second to allow vlc to load and process, otherwise it just resets the time counter
-                    self.toggle_play_pause() # pause again
+                    self.pause(save=False) # pause again
                     self.set_volume(volume)
                     self.media_player.set_time(int(position)) # reset volume and position back to what they were
 
+                    self.set_audio_track(saved_data.get("audio_track"))
+                    self.set_subtitle_track(saved_data.get("subtitle_track"))
                 else:
                     print("Last played file not found or no file was playing")
 
@@ -565,7 +583,13 @@ class MediaPlayer:
             playlist_text = 'Unsaved Playlist'
         else:
             playlist_text = self.current_playlist
-        self.track_label.config(text=f'{playlist_text} - ' + os.path.basename(self.current_file))
+        
+        if self.current_file:
+            file_text = os.path.basename(self.current_file)
+        else:
+            file_text = "No file selected"
+        
+        self.track_label.config(text=f'{playlist_text} - {file_text}')
 
     def load_playlists(self):
         playlist_dir = "playlists"
