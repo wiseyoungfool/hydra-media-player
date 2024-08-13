@@ -20,6 +20,8 @@ import threading
 SUPPORTED_EXTENSIONS = (".mp3", ".wav", ".mp4", ".avi", ".mkv", ".flac", ".mov", ".wmv", ".ogg", ".m4a", ".m4v")
 DEFAULT_VOLUME = 100
 PROGRESS_UPDATE_INTERVAL = 100  # milliseconds
+BUTTON_SIZE = 30
+SMALL_BUTTON_SIZE = 20
 
 class MediaPlayer:
 
@@ -33,6 +35,8 @@ class MediaPlayer:
         self.show_playlist = tk.BooleanVar(value=True)
         self.current_file = None
         self.current_playlist = None
+        self.mute_audio = False
+        self.current_volume = DEFAULT_VOLUME
         self.show_subtitles = tk.BooleanVar(value=True)
         
         # Create settings controls
@@ -118,11 +122,18 @@ class MediaPlayer:
         self.load_playlists()
 
         # Load and resize images
-        self.play_icon = Image.open("images/play.png").resize((30, 30))
-        self.pause_icon = Image.open("images/pause.png").resize((30, 30))
-        self.next_icon = Image.open("images/next.png").resize((30, 30))
-        self.back_icon = Image.open("images/back.png").resize((30, 30))
-        self.stop_icon = Image.open("images/stop.png").resize((30, 30))
+        self.play_icon = Image.open("images/play.png").resize((BUTTON_SIZE, BUTTON_SIZE))
+        self.pause_icon = Image.open("images/pause.png").resize((BUTTON_SIZE, BUTTON_SIZE))
+        self.next_icon = Image.open("images/next.png").resize((BUTTON_SIZE, BUTTON_SIZE))
+        self.back_icon = Image.open("images/back.png").resize((BUTTON_SIZE, BUTTON_SIZE))
+        self.stop_icon = Image.open("images/stop.png").resize((BUTTON_SIZE, BUTTON_SIZE))
+        self.fullscreen_icon = Image.open("images/fullscreen.png").resize((BUTTON_SIZE, BUTTON_SIZE))
+        self.shrink_icon = Image.open("images/minimize.png").resize((BUTTON_SIZE, BUTTON_SIZE))
+        self.volume_icon = Image.open("images/volume.png").resize((BUTTON_SIZE, BUTTON_SIZE))
+        self.mute_icon = Image.open("images/mute.png").resize((BUTTON_SIZE, BUTTON_SIZE))
+        self.repeat_all_icon = Image.open("images/repeat.png").resize((SMALL_BUTTON_SIZE, SMALL_BUTTON_SIZE))
+        self.repeat_once_icon = Image.open("images/repeat-once.png").resize((SMALL_BUTTON_SIZE, SMALL_BUTTON_SIZE))
+        self.shuffle_icon = Image.open("images/shuffle.png").resize((SMALL_BUTTON_SIZE, SMALL_BUTTON_SIZE))
 
         # Convert to PhotoImage
         self.play_icon = ImageTk.PhotoImage(self.play_icon)
@@ -130,6 +141,25 @@ class MediaPlayer:
         self.next_icon = ImageTk.PhotoImage(self.next_icon)
         self.back_icon = ImageTk.PhotoImage(self.back_icon)
         self.stop_icon = ImageTk.PhotoImage(self.stop_icon)
+        self.fullscreen_icon = ImageTk.PhotoImage(self.fullscreen_icon)
+        self.shrink_icon = ImageTk.PhotoImage(self.shrink_icon)
+        self.volume_icon = ImageTk.PhotoImage(self.volume_icon)
+        self.mute_icon = ImageTk.PhotoImage(self.mute_icon)
+        self.repeat_all_icon = ImageTk.PhotoImage(self.repeat_all_icon)
+        self.repeat_once_icon = ImageTk.PhotoImage(self.repeat_once_icon)
+        self.shuffle_icon = ImageTk.PhotoImage(self.shuffle_icon)
+
+        # Create a style
+        self.style = ttk.Style()
+        
+        # Initialize theme
+        self.toggle_theme()
+
+        self.style.configure("Mute.TButton", background="#e1e1e1")
+        self.style.configure("RepeatAll.TButton", background="#e1e1e1")
+        self.style.configure("RepeatOne.TButton", background="#e1e1e1")
+        self.style.configure("Shuffle.TButton", background="#e1e1e1")
+        self.style.configure("Fullscreen.TButton", background="#e1e1e1")
 
         # Create button controls
         controls_frame = ttk.Frame(self.window)
@@ -154,7 +184,7 @@ class MediaPlayer:
 
         # Media buttons frame
         media_buttons_frame = ttk.Frame(controls_frame)
-        media_buttons_frame.pack(fill=tk.X)
+        media_buttons_frame.pack(fill=tk.X, padx = 5)
 
         # Create buttons
         self.play_pause_button = ttk.Button(media_buttons_frame, image=self.play_icon, command=self.toggle_play_pause, takefocus=False)
@@ -173,8 +203,23 @@ class MediaPlayer:
         self.volume_slider = ttk.Scale(media_buttons_frame, from_=0, to=100, orient=tk.HORIZONTAL, command=self.set_volume, takefocus=False)
         self.volume_slider.set(DEFAULT_VOLUME)
         self.volume_slider.pack(side=tk.RIGHT, padx=(10, 0), fill=tk.X, expand=False)
-        self.volume_label = ttk.Label(media_buttons_frame, text='Volume: 100%')
+        self.volume_label = ttk.Label(media_buttons_frame, text='Volume: 100%', width = 12, anchor='w')
         self.volume_label.pack(side=tk.RIGHT, padx=5)
+
+        self.mute_button = ttk.Button(media_buttons_frame, image=self.volume_icon, command=self.toggle_mute, takefocus=False, style="Mute.TButton")
+        self.mute_button.pack(side=tk.RIGHT, padx=2)
+        
+        self.fullscreen_button = ttk.Button(media_buttons_frame, image=self.fullscreen_icon, command=self.toggle_fullscreen, takefocus=False, style="Fullscreen.TButton")
+        self.fullscreen_button.pack(side=tk.RIGHT, padx=2)
+
+        self.repeat_all_button = ttk.Button(media_buttons_frame, image=self.repeat_all_icon, command=self.toggle_repeat_all, takefocus=False, style="RepeatAll.TButton")
+        self.repeat_all_button.pack(side=tk.RIGHT, padx=2)
+
+        self.repeat_one_button = ttk.Button(media_buttons_frame, image=self.repeat_once_icon, command=self.toggle_repeat_one, takefocus=False, style="RepeatOne.TButton")
+        self.repeat_one_button.pack(side=tk.RIGHT, padx=2)
+
+        self.shuffle_button = ttk.Button(media_buttons_frame, image=self.shuffle_icon, command=self.toggle_shuffle, takefocus=False, style="Shuffle.TButton")
+        self.shuffle_button.pack(side=tk.RIGHT, padx=2)
 
         # Media settings frame
         media_settings_frame = ttk.Frame(controls_frame)
@@ -182,20 +227,20 @@ class MediaPlayer:
 
         # Create media settings buttons
         self.shuffle = tk.BooleanVar(media_settings_frame, False)
-        self.shuffle_button = ttk.Checkbutton(media_settings_frame, text="Shuffle", variable=self.shuffle, command=self.toggle_shuffle, takefocus=False)
-        self.shuffle_button.pack(side=tk.RIGHT, padx=5)
+        #self.shuffle_button = ttk.Checkbutton(media_settings_frame, text="Shuffle", variable=self.shuffle, command=self.toggle_shuffle, takefocus=False)
+        #self.shuffle_button.pack(side=tk.RIGHT, padx=5)
 
         self.repeat_one = tk.BooleanVar(media_settings_frame, False)
-        self.repeat_one_button = ttk.Checkbutton(media_settings_frame, text="Repeat One", variable=self.repeat_one, command=self.toggle_repeat_one, takefocus=False)
-        self.repeat_one_button.pack(side=tk.RIGHT, padx=5)
+        #self.repeat_one_button = ttk.Checkbutton(media_settings_frame, text="Repeat One", variable=self.repeat_one, command=self.toggle_repeat_one, takefocus=False)
+        #self.repeat_one_button.pack(side=tk.RIGHT, padx=5)
 
         self.repeat_all = tk.BooleanVar(media_settings_frame, False)
-        self.repeat_all_button = ttk.Checkbutton(media_settings_frame, text="Repeat All", variable=self.repeat_all, command=self.toggle_repeat_all, takefocus=False)
-        self.repeat_all_button.pack(side=tk.RIGHT, padx=5)
+        #self.repeat_all_button = ttk.Checkbutton(media_settings_frame, text="Repeat All", variable=self.repeat_all, command=self.toggle_repeat_all, takefocus=False)
+        #self.repeat_all_button.pack(side=tk.RIGHT, padx=5)
 
         self.fullscreen = tk.BooleanVar(media_settings_frame, False)
-        self.fullscreen_button = ttk.Checkbutton(media_settings_frame, text="Fullscreen", variable=self.fullscreen, command=self.set_fullscreen, takefocus=False)
-        self.fullscreen_button.pack(side=tk.RIGHT, padx=5)
+        #self.fullscreen_button = ttk.Checkbutton(media_settings_frame, text="Fullscreen", variable=self.fullscreen, command=self.set_fullscreen, takefocus=False)
+        #self.fullscreen_button.pack(side=tk.RIGHT, padx=5)
 
         #Analysis controls
         self.analyze_button = ttk.Button(self.analysis_frame, text="Analyze Audio", command=self.perform_audio_analysis, takefocus=False)
@@ -222,9 +267,6 @@ class MediaPlayer:
         self.load_last_used_playlist()
         self.default_subtitle_track = self.media_player.video_get_spu()
         print(self.media_player.video_get_spu())
-
-        # Initialize theme
-        self.toggle_theme()
 
         self.window.focus_set()
         self.on_media_changed()
@@ -358,6 +400,7 @@ class MediaPlayer:
     def set_volume(self, volume):
         vol = int(float(volume))
         self.media_player.audio_set_volume(vol)
+        self.current_volume = vol
         self.volume_label.config(text=f"Volume: {vol}%")
 
     def increase_volume(self, event=None):
@@ -386,7 +429,11 @@ class MediaPlayer:
         self.window.bind_all("<f>", self.toggle_fullscreen)
         self.window.bind_all("<c>", self.toggle_subtitles)
         self.window.bind_all("<i>", self.print_info)
-        self.video_window.bind("<Escape>", self.disable_fullscreen)
+        self.window.bind_all("<m>", self.toggle_mute)
+        self.window.bind_all("<r>", self.toggle_repeat_all)
+        self.window.bind_all("<l>", self.toggle_repeat_one)
+        self.video_window.bind("<Escape>", self.toggle_fullscreen)
+        self.video_window.bind('<Double-1>', self.toggle_fullscreen)
 
         # Bind playlist shortcuts
         self.playlist.bind('<Double-1>', self.play_selected_file)
@@ -648,17 +695,53 @@ class MediaPlayer:
 
 
     # Media Settings Methods
+    def toggle_mute(self, event=None):
+        if self.mute_audio:
+            self.mute_audio = False
+            self.media_player.audio_set_volume(self.current_volume)
+            self.volume_label.config(text=f"Volume: {self.current_volume}%")
+            self.reset_button_style('Mute.TButton')
+            self.mute_button.configure(image=self.volume_icon)
+        else:
+            self.mute_audio = True
+            self.media_player.audio_set_volume(0)
+            self.volume_label.config(text=f"Volume: Mute")
+            self.style.configure("Mute.TButton", background="#00FF00")
+            self.style.map('Mute.TButton', background=[('active', '#7fff7f')])
+            self.mute_button.configure(image=self.mute_icon)
+
+        print(f"Mute audio: {self.mute_audio}")
+
     def toggle_shuffle(self):
+        if self.shuffle.get():
+            self.shuffle.set(False)
+            self.reset_button_style('Shuffle.TButton')
+        else:
+            self.shuffle.set(True)
+            self.style.configure("Shuffle.TButton", background="#00FF00")
+            self.style.map('Shuffle.TButton', background=[('active', '#7fff7f')])
+
         print("Shuffle:", self.shuffle.get())
 
     def toggle_repeat_one(self):
         if self.repeat_one.get():
-            self.repeat_all.set(False)
+            self.repeat_one.set(False)
+            self.reset_button_style('RepeatOne.TButton')
+        else:
+            self.repeat_one.set(True)
+            self.style.configure("RepeatOne.TButton", background="#00FF00")
+            self.style.map('RepeatOne.TButton', background=[('active', '#7fff7f')])
+            
         print("Repeat One:", self.repeat_one.get())
 
     def toggle_repeat_all(self):
         if self.repeat_all.get():
-            self.repeat_one.set(False)
+            self.repeat_all.set(False)
+            self.reset_button_style('RepeatAll.TButton')
+        else:
+            self.repeat_all.set(True)
+            self.style.configure("RepeatAll.TButton", background="#00FF00")
+            self.style.map('RepeatAll.TButton', background=[('active', '#7fff7f')])
         print("Repeat all:", self.repeat_all.get())
 
     def set_fullscreen(self, event=None):
@@ -669,9 +752,11 @@ class MediaPlayer:
         self.stop()
         if self.fullscreen.get():
             self.detach_video()
+            #self.fullscreen_button.config(background="#00FF00", image=self.shrink_icon)
             self.video_window.attributes('-fullscreen', True)
         else:
             self.video_window.attributes('-fullscreen', False)
+            #self.fullscreen_button.config(background="#e1e1e1", image=self.fullscreen_icon)
             self.embed_video()
             self.video_canvas.pack(expand=True, fill='both')
         self.window.update()
@@ -688,10 +773,6 @@ class MediaPlayer:
     def toggle_fullscreen(self, event=None):
         self.fullscreen.set(not self.fullscreen.get())
         self.set_fullscreen()
-
-    def disable_fullscreen(self):
-        if self.fullscreen.get():
-            self.set_fullscreen()
 
     def embed_video(self):
         if sys.platform.startswith('linux'):
@@ -770,17 +851,25 @@ class MediaPlayer:
     def toggle_always_on_top(self):
         self.window.attributes('-topmost', self.always_on_top.get())
 
+    def reset_button_style(self, name):
+        if self.dark_mode.get():
+            self.style.configure(name, background='#333333', foreground='white', borderwidth=0, relief='flat')
+            self.style.map(name, background=[('active', '#555555')])
+        else:
+            self.style.configure(name, background='#e1e1e1', foreground='black', borderwidth=0, relief='flat')
+            self.style.map(name, background=[('active', '#d1d1d1')])
+
     def toggle_theme(self):
-        self.style = ttk.Style()
+
         if self.dark_mode.get():
             self.style.theme_use('clam')
-            self.window.configure(bg='#121212')  # Darker background for modern look
+            self.window.configure(bg='#121212')
             self.style.configure('.', background='#121212', foreground='white', font=('Helvetica', 10))
             self.style.configure('TButton', background='#333333', foreground='white', borderwidth=0, relief='flat')
             self.style.map('TButton', background=[('active', '#555555')])
             self.style.configure('TFrame', background='#1E1E1E')
-            self.style.configure('TNotebook', background='#121212', foreground='white')
-            self.style.configure('TNotebook.Tab', background='#1E1E1E', foreground='white', padding=[10, 5])
+            self.style.configure('TNotebook', background='#121212', foreground='white', borderwidth=0, highlightbackground='#121212')
+            self.style.configure('TNotebook.Tab', background='#1E1E1E', foreground='white', padding=[10, 5], borderwidth=0, highlightbackground='#121212')
             self.style.map('TNotebook.Tab', background=[('selected', '#333333')], foreground=[('selected', 'white')])
             self.playlist.configure(bg='#333333', fg='white', selectbackground='#555555', selectforeground='white', highlightthickness=0)
             self.collections_listbox.configure(bg='#333333', fg='white', selectbackground='#555555', selectforeground='white', highlightthickness=0)
@@ -796,8 +885,8 @@ class MediaPlayer:
             self.style.configure('TButton', background='#e1e1e1', foreground='black', borderwidth=0, relief='flat')
             self.style.map('TButton', background=[('active', '#d1d1d1')])
             self.style.configure('TFrame', background='#f7f7f7')
-            self.style.configure('TNotebook', background='#f7f7f7', foreground='black')
-            self.style.configure('TNotebook.Tab', background='#e1e1e1', foreground='black', padding=[10, 5])
+            self.style.configure('TNotebook', background='#f7f7f7', foreground='black', borderwidth=0, highlightbackground='#f7f7f7')
+            self.style.configure('TNotebook.Tab', background='#e1e1e1', foreground='black', padding=[10, 5], borderwidth=0, highlightbackground='#f7f7f7')
             self.style.map('TNotebook.Tab', background=[('selected', '#d1d1d1')], foreground=[('selected', 'black')])
             self.playlist.configure(bg='white', fg='black', selectbackground='#D3D3D3', selectforeground='black', highlightthickness=0)
             self.collections_listbox.configure(bg='white', fg='black', selectbackground='#D3D3D3', selectforeground='black', highlightthickness=0)
@@ -860,6 +949,9 @@ class MediaPlayer:
         Control + L: Open Playlist
         F: Toggle Fullscreen
         C: Toggle Subtitles
+        M: Mute audio
+        R: Repeat playlist
+        L: Repeat track/file
         """
         messagebox.showinfo("Keyboard Shortcuts", shortcuts)
 
