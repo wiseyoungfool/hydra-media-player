@@ -22,6 +22,8 @@ DEFAULT_VOLUME = 100
 PROGRESS_UPDATE_INTERVAL = 100  # milliseconds
 BUTTON_SIZE = 30
 SMALL_BUTTON_SIZE = 20
+LIGHT_BG = '#a5b7ae'
+DARK_BG = '#121212'
 
 class MediaPlayer:
 
@@ -862,39 +864,50 @@ class MediaPlayer:
     def toggle_theme(self):
 
         if self.dark_mode.get():
-            self.style.theme_use('clam')
-            self.window.configure(bg='#121212')
-            self.style.configure('.', background='#121212', foreground='white', font=('Helvetica', 10))
+            #self.style.theme_use('clam')
+            self.window.configure(bg=DARK_BG)
+            self.style.configure('.', background=DARK_BG, foreground='white', font=('Helvetica', 10))
             self.style.configure('TButton', background='#333333', foreground='white', borderwidth=0, relief='flat')
             self.style.map('TButton', background=[('active', '#555555')])
-            self.style.configure('TFrame', background='#1E1E1E')
-            self.style.configure('TNotebook', background='#121212', foreground='white', borderwidth=0, highlightbackground='#121212')
-            self.style.configure('TNotebook.Tab', background='#1E1E1E', foreground='white', padding=[10, 5], borderwidth=0, highlightbackground='#121212')
+            self.style.configure('TFrame', background=DARK_BG)
+            self.style.configure('TNotebook', background=DARK_BG, foreground='white', borderwidth=0, highlightbackground=DARK_BG)
+            self.style.configure('TNotebook.Tab', background='#1E1E1E', foreground='white', padding=[10, 5], borderwidth=0, highlightbackground=DARK_BG)
             self.style.map('TNotebook.Tab', background=[('selected', '#333333')], foreground=[('selected', 'white')])
             self.playlist.configure(bg='#333333', fg='white', selectbackground='#555555', selectforeground='white', highlightthickness=0)
             self.collections_listbox.configure(bg='#333333', fg='white', selectbackground='#555555', selectforeground='white', highlightthickness=0)
-            #self.volume_slider.configure(troughcolor='#333333', highlightthickness=0)
+            self.style.configure('TScale',troughcolor='#333333', background = '#818181', highlightthickness=5)
             self.style.configure('TCheckbutton', background='#1E1E1E', foreground='white')
             self.style.map('TCheckbutton', background=[('active', '#333333')], foreground=[('active', 'white')])
             self.style.configure('TProgressbar', troughcolor='#333333', background='#00FF00', thickness=10)
             #self.progress.configure(style='TProgressbar', length=200, mode='determinate')
+
+            self.style.configure("Mute.TButton", background="#333333")
+            self.style.configure("RepeatAll.TButton", background="#333333")
+            self.style.configure("RepeatOne.TButton", background="#333333")
+            self.style.configure("Shuffle.TButton", background="#333333")
+            self.style.configure("Fullscreen.TButton", background="#333333")
         else:
             self.style.theme_use('default')
-            self.window.configure(bg='#f7f7f7')
-            self.style.configure('.', background='white', foreground='black', font=('Helvetica', 10))
+            self.window.configure(bg=LIGHT_BG)
+            self.style.configure('.', background=LIGHT_BG, foreground='black', font=('Helvetica', 10))
             self.style.configure('TButton', background='#e1e1e1', foreground='black', borderwidth=0, relief='flat')
             self.style.map('TButton', background=[('active', '#d1d1d1')])
-            self.style.configure('TFrame', background='#f7f7f7')
-            self.style.configure('TNotebook', background='#f7f7f7', foreground='black', borderwidth=0, highlightbackground='#f7f7f7')
+            self.style.configure('TFrame', background=LIGHT_BG)
+            self.style.configure('TNotebook', background=LIGHT_BG, foreground='black', borderwidth=0, highlightbackground='#f7f7f7')
             self.style.configure('TNotebook.Tab', background='#e1e1e1', foreground='black', padding=[10, 5], borderwidth=0, highlightbackground='#f7f7f7')
-            self.style.map('TNotebook.Tab', background=[('selected', '#d1d1d1')], foreground=[('selected', 'black')])
+            self.style.map('TNotebook.Tab', background=[('selected', '#f7f7f7')], foreground=[('selected', 'black')])
             self.playlist.configure(bg='white', fg='black', selectbackground='#D3D3D3', selectforeground='black', highlightthickness=0)
             self.collections_listbox.configure(bg='white', fg='black', selectbackground='#D3D3D3', selectforeground='black', highlightthickness=0)
-            #self.volume_slider.configure(troughcolor='#333333', highlightthickness=0)
+            self.style.configure('TScale',troughcolor='#818181', background = '#f7f7f7', highlightthickness=5)
             self.style.configure('TCheckbutton', background='#f7f7f7', foreground='black')
             self.style.map('TCheckbutton', background=[('active', '#e1e1e1')], foreground=[('active', 'black')])
-            self.style.configure('TProgressbar', troughcolor='#e1e1e1', background='#00FF00', thickness=10)
+            self.style.configure('TProgressbar', troughcolor='#818181', background='#00FF00', thickness=10)
             #self.progress.configure(style='TProgressbar', length=200, mode='determinate')
+            self.style.configure("Mute.TButton", background="#e1e1e1")
+            self.style.configure("RepeatAll.TButton", background="#e1e1e1")
+            self.style.configure("RepeatOne.TButton", background="#e1e1e1")
+            self.style.configure("Shuffle.TButton", background="#e1e1e1")
+            self.style.configure("Fullscreen.TButton", background="#e1e1e1")
 
 
 
@@ -967,7 +980,7 @@ class MediaPlayer:
         messagebox.showinfo("About Hydra Media Player", about_text)
  
     def create_menu(self):
-        menubar = tk.Menu(self.window)
+        menubar = tk.Menu(self.window, bg='#333333', fg='white', activebackground='#555555', activeforeground='white')
         self.window.config(menu=menubar)
 
         # File Menu
