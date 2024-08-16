@@ -1,5 +1,6 @@
 # Hydra Media Player
-====================
+--------
+![hydra-screenshot](https://github.com/user-attachments/assets/79496ea6-8ce8-47ed-b822-96874eeb793d)
 
 A versatile media player built with Python and VLC. Made primarily to facilitate saving progress in playlists while watching videos or listening to music. When closing the program, progress will be saved and loaded on next start, unlike normal VLC functionality. Also offers basic audio analysis tools.
 
