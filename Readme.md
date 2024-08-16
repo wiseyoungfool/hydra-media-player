@@ -31,7 +31,7 @@ Installation
 1. Download and install VLC Media player: [https://www.videolan.org/vlc/](https://www.videolan.org/vlc/)
 2. Clone this repository to your local machine:
    ```sh
-   git clone https://github.com/yourusername/hydra-media-player.git
+   git clone https://github.com/wiseyoungfool/hydra-media-player.git
    cd hydra-media-player
    ```
 3. Install dependencies using pip:
