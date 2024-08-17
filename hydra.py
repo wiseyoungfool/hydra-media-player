@@ -11,7 +11,7 @@ import sys
 import librosa
 import pyloudnorm as pyln
 import numpy as np
-
+import sounddevice as sd
 
 import threading
 #from pyAudioAnalysis import audioBasicIO
@@ -1105,6 +1105,31 @@ class MediaPlayer:
 
         print("Audio Analysis Complete")
 
+    def select_audio_device(self):
+        devices = sd.query_devices()
+        device_list = [f"{i}: {device['name']}" for i, device in enumerate(devices) if device['max_output_channels'] > 0]
+        
+        device_window = tk.Toplevel(self.window)
+        device_window.title("Select Audio Device")
+        device_window.geometry("300x400")
+        
+        listbox = tk.Listbox(device_window, width=50, height=20)
+        listbox.pack(pady=10)
+        
+        for device in device_list:
+            listbox.insert(tk.END, device)
+        
+        def on_select():
+            selection = listbox.curselection()
+            if selection:
+                device_id = int(device_list[selection[0]].split(":")[0])
+                self.media_player.audio_output_device_set(None, devices[device_id]['name'].encode('utf-8'))
+                messagebox.showinfo("Audio Device", f"Selected device: {devices[device_id]['name']}")
+                device_window.destroy()
+        
+        select_button = ttk.Button(device_window, text="Select", command=on_select)
+        select_button.pack(pady=10)
+        
 if __name__ == "__main__":
     window = tk.Tk()
     player = MediaPlayer(window)
