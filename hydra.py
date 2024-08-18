@@ -1204,6 +1204,8 @@ class MediaPlayer:
             'shuffle': str(self.shuffle.get()),
             'repeat_one': str(self.repeat_one.get()),
             'repeat_all': str(self.repeat_all.get()),
+            'window_width': str(window.winfo_width()),
+            'window_height': str(window.winfo_height()),
             #'fullscreen': str(self.fullscreen.get())
         }
         
@@ -1224,6 +1226,17 @@ class MediaPlayer:
             self.shuffle.set(config.getboolean('Settings', 'shuffle', fallback=False))
             self.repeat_one.set(config.getboolean('Settings', 'repeat_one', fallback=False))
             self.repeat_all.set(config.getboolean('Settings', 'repeat_all', fallback=False))
+            width = config.getint('Settings', 'window_width', fallback=1280)
+            height = config.getint('Settings', 'window_height', fallback=800)
+
+            # Enforce minimum values
+            if width < 660:
+                width = 660
+            if height < 480:
+                height = 480
+
+            self.window.geometry(f"{width}x{height}")
+
             #self.fullscreen.set(config.getboolean('Settings', 'fullscreen', fallback=False))
             
             # Load integer settings
