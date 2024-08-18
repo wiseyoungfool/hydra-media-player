@@ -12,7 +12,7 @@ import librosa
 import pyloudnorm as pyln
 import numpy as np
 import sounddevice as sd
-
+import configparser
 import threading
 #from pyAudioAnalysis import audioBasicIO
 #from pyAudioAnalysis import ShortTermFeatures
@@ -40,6 +40,11 @@ class MediaPlayer:
         self.mute_audio = False
         self.current_volume = DEFAULT_VOLUME
         self.show_subtitles = tk.BooleanVar(value=True)
+
+        self.shuffle = tk.BooleanVar(value=False)
+        self.repeat_one = tk.BooleanVar(value=False)
+        self.repeat_all = tk.BooleanVar(value=False)
+        self.fullscreen = tk.BooleanVar(value=False)
         
         # Create settings controls
         settings_frame = ttk.Frame(self.window)
@@ -154,9 +159,6 @@ class MediaPlayer:
         # Create a style
         self.style = ttk.Style()
         
-        # Initialize theme
-        self.toggle_theme()
-
         self.style.configure("Mute.TButton", background="#e1e1e1")
         self.style.configure("RepeatAll.TButton", background="#e1e1e1")
         self.style.configure("RepeatOne.TButton", background="#e1e1e1")
@@ -272,6 +274,8 @@ class MediaPlayer:
 
         self.window.focus_set()
         self.on_media_changed()
+
+        self.load_settings()
 
     # Control Methods
     def play(self):
@@ -518,6 +522,7 @@ class MediaPlayer:
             #messagebox.showinfo("Playlist Created", f"Playlist created with {len(playlist)} files")
 
     def on_closing(self):
+        self.save_settings()
         self.save_playlist("last_playlist", autosave=True)
         self.save_playlist(self.current_playlist)
         self.window.destroy()
@@ -711,41 +716,54 @@ class MediaPlayer:
             self.style.configure("Mute.TButton", background="#00FF00")
             self.style.map('Mute.TButton', background=[('active', '#7fff7f')])
             self.mute_button.configure(image=self.mute_icon)
-
         print(f"Mute audio: {self.mute_audio}")
+        self.save_settings()
 
-    def toggle_shuffle(self):
+    def toggle_shuffle(self, event=None):
+        self.shuffle.set(not self.shuffle.get())
+        self.update_shuffle_button()
+        print("Shuffle:", self.shuffle.get())
+        self.save_settings()
+
+    def toggle_repeat_one(self, event=None):
+        self.repeat_one.set(not self.repeat_one.get())
+        self.update_repeat_one_button()
+        print("Repeat One:", self.repeat_one.get())
+        self.save_settings()
+
+    def toggle_repeat_all(self, event=None):
+        self.repeat_all.set(not self.repeat_all.get())
+        self.update_repeat_all_button()
+        print("Repeat all:", self.repeat_all.get())
+        self.save_settings()
+
+    def update_shuffle_button(self):
         if self.shuffle.get():
-            self.shuffle.set(False)
-            self.reset_button_style('Shuffle.TButton')
-        else:
-            self.shuffle.set(True)
             self.style.configure("Shuffle.TButton", background="#00FF00")
             self.style.map('Shuffle.TButton', background=[('active', '#7fff7f')])
-
-        print("Shuffle:", self.shuffle.get())
-
-    def toggle_repeat_one(self):
-        if self.repeat_one.get():
-            self.repeat_one.set(False)
-            self.reset_button_style('RepeatOne.TButton')
+            self.options_menu.entryconfig(0, selectcolor='green')
         else:
-            self.repeat_one.set(True)
+            self.reset_button_style('Shuffle.TButton')
+            self.options_menu.entryconfig(0, selectcolor='')
+
+    def update_repeat_one_button(self):
+        if self.repeat_one.get():
             self.style.configure("RepeatOne.TButton", background="#00FF00")
             self.style.map('RepeatOne.TButton', background=[('active', '#7fff7f')])
-            
-        print("Repeat One:", self.repeat_one.get())
-
-    def toggle_repeat_all(self):
-        if self.repeat_all.get():
-            self.repeat_all.set(False)
-            self.reset_button_style('RepeatAll.TButton')
+            self.options_menu.entryconfig(1, selectcolor='green')
         else:
-            self.repeat_all.set(True)
+            self.reset_button_style('RepeatOne.TButton')
+            self.options_menu.entryconfig(1, selectcolor='')
+
+    def update_repeat_all_button(self):
+        if self.repeat_all.get():
             self.style.configure("RepeatAll.TButton", background="#00FF00")
             self.style.map('RepeatAll.TButton', background=[('active', '#7fff7f')])
-        print("Repeat all:", self.repeat_all.get())
-
+            self.options_menu.entryconfig(2, selectcolor='green')
+        else:
+            self.reset_button_style('RepeatAll.TButton')
+            self.options_menu.entryconfig(2, selectcolor='')
+            
     def set_fullscreen(self, event=None):
         time_spot = self.media_player.get_time()
         is_playing = self.media_player.is_playing()
@@ -775,6 +793,7 @@ class MediaPlayer:
     def toggle_fullscreen(self, event=None):
         self.fullscreen.set(not self.fullscreen.get())
         self.set_fullscreen()
+        #self.save_settings()
 
     def embed_video(self):
         if sys.platform.startswith('linux'):
@@ -806,6 +825,7 @@ class MediaPlayer:
             self.show_subtitles.set(False)
             self.media_player.video_set_spu(-1)
         print("New Track:",self.media_player.video_get_spu(), "Show Subtitles:", self.show_subtitles.get())
+        self.save_settings()
 
     def update_subtitle_tracks_menu(self):
         self.subtitle_tracks_menu.delete(0, 'end')
@@ -851,7 +871,11 @@ class MediaPlayer:
             
     # App Settings Methods
     def toggle_always_on_top(self):
-        self.window.attributes('-topmost', self.always_on_top.get())
+        is_on_top = self.always_on_top.get()
+        self.window.attributes('-topmost', is_on_top)
+        self.video_window.attributes('-topmost', is_on_top)
+        print(f"Always on top: {is_on_top}")
+        self.save_settings()
 
     def reset_button_style(self, name):
         if self.dark_mode.get():
@@ -862,9 +886,10 @@ class MediaPlayer:
             self.style.map(name, background=[('active', '#d1d1d1')])
 
     def toggle_theme(self):
-
         if self.dark_mode.get():
+            # Apply dark theme
             #self.style.theme_use('clam')
+            self.style.theme_use('default')
             self.window.configure(bg=DARK_BG)
             self.style.configure('.', background=DARK_BG, foreground='white', font=('Helvetica', 10))
             self.style.configure('TButton', background='#333333', foreground='white', borderwidth=0, relief='flat')
@@ -887,6 +912,7 @@ class MediaPlayer:
             self.style.configure("Shuffle.TButton", background="#333333")
             self.style.configure("Fullscreen.TButton", background="#333333")
         else:
+            # Apply light theme
             self.style.theme_use('default')
             self.window.configure(bg=LIGHT_BG)
             self.style.configure('.', background=LIGHT_BG, foreground='black', font=('Helvetica', 10))
@@ -908,8 +934,10 @@ class MediaPlayer:
             self.style.configure("RepeatOne.TButton", background="#e1e1e1")
             self.style.configure("Shuffle.TButton", background="#e1e1e1")
             self.style.configure("Fullscreen.TButton", background="#e1e1e1")
-
-
+        
+        self.update_shuffle_button()
+        self.update_repeat_one_button()
+        self.update_repeat_all_button()
 
             
      # View Menu Methods
@@ -1021,25 +1049,27 @@ class MediaPlayer:
         self.audio_tracks_menu.add_command(label="No media loaded", state='disabled')
 
         # Options Menu
-        options_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Options", menu=options_menu)
-        options_menu.add_checkbutton(label="Shuffle", variable=self.shuffle, command=self.toggle_shuffle)
-        options_menu.add_checkbutton(label="Repeat One", variable=self.repeat_one, command=self.toggle_repeat_one)
-        options_menu.add_checkbutton(label="Repeat All", variable=self.repeat_all, command=self.toggle_repeat_all)
-        options_menu.add_separator()
-        options_menu.add_command(label="Toggle Fullscreen", command=self.toggle_fullscreen)
-        #options_menu.add_checkbutton(label="Show Playlist", variable=self.show_playlist, command=self.toggle_playlist)
-        options_menu.add_separator()
-        options_menu.add_checkbutton(label="Always On Top", variable=self.always_on_top, command=self.toggle_always_on_top)
-        options_menu.add_checkbutton(label="Dark Mode", variable=self.dark_mode, command=self.toggle_theme)
+        self.options_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Options", menu=self.options_menu)
+        self.options_menu.add_checkbutton(label="Shuffle", command=self.toggle_shuffle)
+        self.options_menu.add_checkbutton(label="Repeat One", command=self.toggle_repeat_one)
+        self.options_menu.add_checkbutton(label="Repeat All", command=self.toggle_repeat_all)
+        self.options_menu.add_separator()
+        self.options_menu.add_command(label="Toggle Fullscreen", command=self.toggle_fullscreen)
+        #self.options_menu.add_checkbutton(label="Show Playlist", variable=self.show_playlist, command=self.toggle_playlist)
+        self.options_menu.add_separator()
+        self.options_menu.add_checkbutton(label="Always On Top", variable=self.always_on_top, command=self.toggle_always_on_top)
+        self.options_menu.add_checkbutton(label="Dark Mode", variable=self.dark_mode, command=self.toggle_theme)
+        self.options_menu.add_separator()
+        self.options_menu.add_command(label="Reset Settings", command=self.reset_settings)
 
         # Tools Menu
-        tools_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Tools", menu=tools_menu)
-        tools_menu.add_command(label="Media Information", command=self.show_media_info)
-        tools_menu.add_command(label="Select Audio Device", command=self.select_audio_device)
-        tools_menu.add_command(label="Show Equalizer", command=self.show_equalizer)
-        tools_menu.add_command(label="Analyze Audio", command=self.perform_audio_analysis)
+        self.tools_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Tools", menu=self.tools_menu)
+        self.tools_menu.add_command(label="Media Information", command=self.show_media_info)
+        self.tools_menu.add_command(label="Select Audio Device", command=self.select_audio_device)
+        self.tools_menu.add_command(label="Show Equalizer", command=self.show_equalizer)
+        self.tools_menu.add_command(label="Analyze Audio", command=self.perform_audio_analysis)
 
         # Help Menu
         help_menu = tk.Menu(menubar, tearoff=0)
@@ -1129,7 +1159,59 @@ class MediaPlayer:
         
         select_button = ttk.Button(device_window, text="Select", command=on_select)
         select_button.pack(pady=10)
+
+    # Settings
+    def save_settings(self):
+        config = configparser.ConfigParser()
+        config['Settings'] = {
+            'dark_mode': str(self.dark_mode.get()),
+            'volume': str(self.current_volume),
+            'always_on_top': str(self.always_on_top.get()),
+            'show_subtitles': str(self.show_subtitles.get()),
+            'shuffle': str(self.shuffle.get()),
+            'repeat_one': str(self.repeat_one.get()),
+            'repeat_all': str(self.repeat_all.get()),
+            #'fullscreen': str(self.fullscreen.get())
+        }
         
+        with open('settings.ini', 'w') as configfile:
+            config.write(configfile)
+
+        print("Settings saved.")
+
+    def load_settings(self):
+        config = configparser.ConfigParser()
+        config.read('settings.ini')
+        
+        if 'Settings' in config:
+            # Load boolean settings
+            self.dark_mode.set(config.getboolean('Settings', 'dark_mode', fallback=False))
+            self.always_on_top.set(config.getboolean('Settings', 'always_on_top', fallback=False))
+            self.show_subtitles.set(config.getboolean('Settings', 'show_subtitles', fallback=True))
+            self.shuffle.set(config.getboolean('Settings', 'shuffle', fallback=False))
+            self.repeat_one.set(config.getboolean('Settings', 'repeat_one', fallback=False))
+            self.repeat_all.set(config.getboolean('Settings', 'repeat_all', fallback=False))
+            #self.fullscreen.set(config.getboolean('Settings', 'fullscreen', fallback=False))
+            
+            # Load integer settings
+            self.current_volume = config.getint('Settings', 'volume', fallback=DEFAULT_VOLUME)
+            
+            # Apply loaded settings
+            self.set_volume(self.current_volume)
+            self.volume_slider.set(self.current_volume)  # Update slider position
+            self.toggle_always_on_top()
+            #self.toggle_fullscreen()
+
+        # Ensure theme is applied
+        self.toggle_theme()
+
+    def reset_settings(self):
+        if messagebox.askyesno("Reset Settings", "Are you sure you want to reset all settings to default?"):
+            os.remove('settings.ini')
+            self.load_settings()
+            self.save_settings() 
+
+
 if __name__ == "__main__":
     window = tk.Tk()
     player = MediaPlayer(window)
