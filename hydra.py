@@ -398,6 +398,7 @@ class MediaPlayer:
                 self.playlist.selection_set(next_index)
                 self.stop()
                 self.play()
+                self.on_media_changed()
                 self.window.after(PROGRESS_UPDATE_INTERVAL, self.update_play_pause_button)
             else:
                 raise IndexError("No next song available")
