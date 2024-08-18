@@ -40,6 +40,8 @@ class MediaPlayer:
         self.mute_audio = False
         self.current_volume = DEFAULT_VOLUME
         self.show_subtitles = tk.BooleanVar(value=True)
+        self.audio_track=1
+        self.subtitle_track=1
 
         self.shuffle = tk.BooleanVar(value=False)
         self.repeat_one = tk.BooleanVar(value=False)
@@ -167,7 +169,7 @@ class MediaPlayer:
 
         # Create button controls
         controls_frame = ttk.Frame(self.window)
-        controls_frame.pack()
+        controls_frame.pack(fill=tk.X)
 
         # Media info frame
         media_info_frame = ttk.Frame(controls_frame)
@@ -269,7 +271,8 @@ class MediaPlayer:
 
         # Load Last playlist
         self.load_last_used_playlist()
-        self.default_subtitle_track = self.media_player.video_get_spu()
+        self.subtitle_track = self.media_player.video_get_spu()
+        self.audio_track = self.media_player.audio_get_track()
         print(self.media_player.video_get_spu())
 
         self.window.focus_set()
@@ -400,6 +403,16 @@ class MediaPlayer:
             self.stop()
         self.window.focus_set()
 
+    def skip_forward(self, event=None):
+        current_position = self.media_player.get_time();
+        self.media_player.set_time(current_position + (10 * 1000))  # Skip ahead 10 seconds
+        self.update_progress_bar()  # Update the progress bar
+
+    def skip_behind(self, event=None):
+        current_position = self.media_player.get_time();
+        self.media_player.set_time(current_position - (10 * 1000))  # Rewind 10 seconds
+        self.update_progress_bar()  # Update the progress bar
+
     def song_finished(self, event):
         self.window.after(0,self.next_song) # call next_song on tkinter's main thread to prevent crashes
     
@@ -424,10 +437,12 @@ class MediaPlayer:
     def create_event_bindings(self):
         # Bind keyboard shortcuts
         self.window.bind_all("<space>", self.toggle_play_pause)
-        self.window.bind_all("<Left>", self.previous_song)
-        self.window.bind_all("<Right>", self.next_song)
-        self.window.bind_all("<Shift-Up>", self.increase_volume)
-        self.window.bind_all("<Shift-Down>", self.decrease_volume)
+        self.window.bind_all("<Left>", self.skip_behind)
+        self.window.bind_all("<Right>", self.skip_forward)
+        self.window.bind_all("<Control-Left>", self.previous_song)
+        self.window.bind_all("<Control-Right>", self.next_song)
+        self.window.bind_all("<Control-Up>", self.increase_volume)
+        self.window.bind_all("<Control-Down>", self.decrease_volume)
         self.window.bind_all("<Control-o>", self.add_to_playlist)
         self.window.bind_all("<Delete>", self.remove_song)
         self.window.bind_all("<Control-s>", self.save_playlist)
@@ -452,7 +467,7 @@ class MediaPlayer:
         print(f"Subtitle Track: {self.media_player.video_get_spu()}")
         print(f"Current File: {self.current_file}")
         print(f"Current Playlist: {self.current_playlist}")
-        print(f"Default Sub Track: {self.default_subtitle_track}")
+        print(f"Default Sub Track: {self.subtitle_track}")
 
     # Progress Bar Methods
     def seek(self, event):
@@ -531,6 +546,9 @@ class MediaPlayer:
         print("Media changed, updating tracks")
         self.window.after(2000, self.update_subtitle_tracks_menu)
         self.window.after(2000, self.update_audio_tracks_menu)
+        time.sleep(.5)
+        self.set_audio_track(self.audio_track)
+        self.set_subtitle_track(self.subtitle_track)
         
     def save_playlist(self, playlist_name=None, autosave=False):
         # Get or set playlist name
@@ -820,7 +838,7 @@ class MediaPlayer:
         print("Old Track:", self.media_player.video_get_spu(),  "Show Subtitles:", self.show_subtitles.get())
         if self.media_player.video_get_spu() == -1:
             self.show_subtitles.set(True)
-            self.media_player.video_set_spu(self.default_subtitle_track)
+            self.media_player.video_set_spu(self.subtitle_track)
         else:
             self.show_subtitles.set(False)
             self.media_player.video_set_spu(-1)
@@ -858,12 +876,13 @@ class MediaPlayer:
 
     def set_audio_track(self, track_id, track_name=None):
         self.media_player.audio_set_track(track_id)
+        self.audio_track=track_id
         print(f"Switched to audio track: {track_name}")
 
     def set_subtitle_track(self, track_id, track_name=None):
         self.media_player.video_set_spu(track_id)
         self.show_subtitles.set(True)
-        self.default_subtitle_track = track_id
+        self.subtitle_track = track_id
         if track_id == -1:
             print("Subtitles disabled")
         else:
@@ -980,10 +999,12 @@ class MediaPlayer:
     def show_shortcuts(self):
         shortcuts = """
         Space: Play/Pause
-        Left Arrow: Previous Track
-        Right Arrow: Next Track
-        Shift + Up Arrow: Volume Up
-        Shift + Down Arrow: Volume Down
+        Left Arrow: Skip Behind
+        Right Arrow: Skip Ahead
+        Control + Left Arrow: Previous Track
+        Control + Right Arrow: Next Track
+        Control + Up Arrow: Volume Up
+        Control + Down Arrow: Volume Down
         Control + O: Add to Playlist
         Delete: Remove From Playlist
         Control + S: Save Playlist
