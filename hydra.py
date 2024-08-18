@@ -30,7 +30,7 @@ class MediaPlayer:
     def __init__(self, window):
         self.window = window
         self.window.title("Hydra Media Player")
-        self.window.geometry("640x560")
+        self.window.geometry("1280x800")
 
         # Boolean Vars
         self.can_save_interval = True
@@ -135,6 +135,8 @@ class MediaPlayer:
         self.pause_icon = Image.open("images/pause.png").resize((BUTTON_SIZE, BUTTON_SIZE))
         self.next_icon = Image.open("images/next.png").resize((BUTTON_SIZE, BUTTON_SIZE))
         self.back_icon = Image.open("images/back.png").resize((BUTTON_SIZE, BUTTON_SIZE))
+        self.ff_icon = Image.open("images/fast-forward.png").resize((BUTTON_SIZE, BUTTON_SIZE))
+        self.rew_icon = Image.open("images/rewind.png").resize((BUTTON_SIZE, BUTTON_SIZE))
         self.stop_icon = Image.open("images/stop.png").resize((BUTTON_SIZE, BUTTON_SIZE))
         self.fullscreen_icon = Image.open("images/fullscreen.png").resize((BUTTON_SIZE, BUTTON_SIZE))
         self.shrink_icon = Image.open("images/minimize.png").resize((BUTTON_SIZE, BUTTON_SIZE))
@@ -149,6 +151,8 @@ class MediaPlayer:
         self.pause_icon = ImageTk.PhotoImage(self.pause_icon)
         self.next_icon = ImageTk.PhotoImage(self.next_icon)
         self.back_icon = ImageTk.PhotoImage(self.back_icon)
+        self.ff_icon = ImageTk.PhotoImage(self.ff_icon)
+        self.rew_icon = ImageTk.PhotoImage(self.rew_icon)
         self.stop_icon = ImageTk.PhotoImage(self.stop_icon)
         self.fullscreen_icon = ImageTk.PhotoImage(self.fullscreen_icon)
         self.shrink_icon = ImageTk.PhotoImage(self.shrink_icon)
@@ -198,6 +202,12 @@ class MediaPlayer:
 
         self.previous_button = ttk.Button(media_buttons_frame, image=self.back_icon, command=self.previous_song, takefocus=False)
         self.previous_button.pack(side=tk.LEFT, padx=2)
+
+        self.backward_button = ttk.Button(media_buttons_frame, image=self.rew_icon, command=self.skip_backward, takefocus=False)
+        self.backward_button.pack(side=tk.LEFT, padx=2)
+
+        self.forward_button = ttk.Button(media_buttons_frame, image=self.ff_icon, command=self.skip_forward, takefocus=False)
+        self.forward_button.pack(side=tk.LEFT, padx=2)
 
         self.next_button = ttk.Button(media_buttons_frame, image=self.next_icon, command=self.next_song, takefocus=False)
         self.next_button.pack(side=tk.LEFT, padx=2)
@@ -408,7 +418,7 @@ class MediaPlayer:
         self.media_player.set_time(current_position + (10 * 1000))  # Skip ahead 10 seconds
         self.update_progress_bar()  # Update the progress bar
 
-    def skip_behind(self, event=None):
+    def skip_backward(self, event=None):
         current_position = self.media_player.get_time();
         self.media_player.set_time(current_position - (10 * 1000))  # Rewind 10 seconds
         self.update_progress_bar()  # Update the progress bar
@@ -436,25 +446,27 @@ class MediaPlayer:
 
     def create_event_bindings(self):
         # Bind keyboard shortcuts
-        self.window.bind_all("<space>", self.toggle_play_pause)
-        self.window.bind_all("<Left>", self.skip_behind)
+        self.window.bind("<space>", self.toggle_play_pause)
+        self.window.bind_all("<Left>", self.skip_backward)
         self.window.bind_all("<Right>", self.skip_forward)
         self.window.bind_all("<Control-Left>", self.previous_song)
         self.window.bind_all("<Control-Right>", self.next_song)
         self.window.bind_all("<Control-Up>", self.increase_volume)
         self.window.bind_all("<Control-Down>", self.decrease_volume)
-        self.window.bind_all("<Control-o>", self.add_to_playlist)
-        self.window.bind_all("<Delete>", self.remove_song)
-        self.window.bind_all("<Control-s>", self.save_playlist)
-        self.window.bind_all("<Control-l>", self.load_playlist)
-        self.window.bind_all("<f>", self.toggle_fullscreen)
-        self.window.bind_all("<c>", self.toggle_subtitles)
-        self.window.bind_all("<i>", self.print_info)
-        self.window.bind_all("<m>", self.toggle_mute)
-        self.window.bind_all("<r>", self.toggle_repeat_all)
-        self.window.bind_all("<l>", self.toggle_repeat_one)
+        self.window.bind("<Control-o>", self.add_to_playlist)
+        self.window.bind("<Delete>", self.remove_song)
+        self.window.bind("<Control-s>", self.save_playlist)
+        self.window.bind("<Control-l>", self.load_playlist)
+        self.window.bind("<f>", self.toggle_fullscreen)
+        self.window.bind("<c>", self.toggle_subtitles)
+        self.window.bind("<i>", self.print_info)
+        self.window.bind("<m>", self.toggle_mute)
+        self.window.bind("<r>", self.toggle_repeat_all)
+        self.window.bind("<l>", self.toggle_repeat_one)
+        self.video_canvas.bind('<Double-1>', self.toggle_fullscreen)
         self.video_window.bind("<Escape>", self.toggle_fullscreen)
         self.video_window.bind('<Double-1>', self.toggle_fullscreen)
+        self.video_window.bind("<space>", self.toggle_play_pause)
 
         # Bind playlist shortcuts
         self.playlist.bind('<Double-1>', self.play_selected_file)
