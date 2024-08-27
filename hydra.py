@@ -406,7 +406,6 @@ class MediaPlayer:
         except IndexError:
             self.stop()
             self.track_label.config(text="End of Playlist")
-            # Optionally, you could disable the next button here
             self.next_button.config(state='disabled')
 
         except Exception as e:
@@ -595,7 +594,11 @@ class MediaPlayer:
                     with open("last_used_playlist.json", 'w') as f:
                         json.dump({"last_playlist": self.current_playlist}, f)
 
-                    print(f"Current Playlist: {self.current_playlist}")
+                    #print(f"Current Playlist: {self.current_playlist}")
+                    if playlist_name!=None and autosave==False:
+                        print("Loading Playlist...")
+                        self.load_playlist(playlist_name)
+                        
 
                 except IOError as e:
                     print(f"Error saving playlist: {e}")
