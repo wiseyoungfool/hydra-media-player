@@ -530,9 +530,11 @@ class MediaPlayer:
                     for file in files:
                         if file.endswith(SUPPORTED_EXTENSIONS):
                             self.playlist.insert(tk.END, os.path.join(root, file))
+                self.select_default_track()
         else:
             for file_path in file_paths:
                 self.playlist.insert(tk.END, file_path)
+                self.select_default_track()
 
     def remove_song(self, event=None):
         selected_index = self.playlist.curselection()[0]
@@ -546,7 +548,7 @@ class MediaPlayer:
                 for file in files:
                     if file.endswith(SUPPORTED_EXTENSIONS):
                         self.playlist.insert(tk.END, os.path.join(root, file))
-            #messagebox.showinfo("Playlist Created", f"Playlist created with {len(playlist)} files")
+            self.select_default_track()
 
     def on_closing(self):
         self.save_settings()
@@ -554,6 +556,13 @@ class MediaPlayer:
             self.save_playlist("last_playlist", autosave=True)
             self.save_playlist(self.current_playlist)
         self.window.destroy()
+    
+    def select_default_track(self):
+        if not self.playlist.curselection():
+            self.playlist.activate(tk.ACTIVE)
+            self.playlist.selection_set(tk.ACTIVE)
+            self.update_media_label()
+            #self.update_progress_bar()
 
     def on_media_changed(self, event=None):
         print("Media changed, updating tracks")
