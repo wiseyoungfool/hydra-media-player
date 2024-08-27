@@ -103,14 +103,20 @@ class MediaPlayer:
         playlist_buttons_frame = ttk.Frame(self.playlist_frame)
         playlist_buttons_frame.pack(pady=10)
 
-        self.add_button = ttk.Button(playlist_buttons_frame, text="Add", command=self.add_to_playlist, takefocus=False)
+        self.add_button = ttk.Button(playlist_buttons_frame, text="Add File", command=self.add_to_playlist, takefocus=False)
         self.add_button.grid(row=0, column=0, padx=10)
 
+        self.add_folder_button = ttk.Button(playlist_buttons_frame, text="Add Folder", command=self.create_playlist_from_folder, takefocus=False)
+        self.add_folder_button.grid(row=0, column=1, padx=10)
+
         self.remove_button = ttk.Button(playlist_buttons_frame,text="Remove",command=self.remove_song, takefocus=False)
-        self.remove_button.grid(row=0, column=1, padx=10)
+        self.remove_button.grid(row=0, column=2, padx=10)
+
+        self.save_pl_button = ttk.Button(playlist_buttons_frame, text="Save Playlist", command=self.save_playlist, takefocus=False)
+        self.save_pl_button.grid(row=0, column=3, padx=10)
 
         self.clear_button = ttk.Button(playlist_buttons_frame,text="Clear",command=self.clear_playlist, takefocus=False)
-        self.clear_button.grid(row=0, column=2, padx=10)
+        self.clear_button.grid(row=0, column=4, padx=10)
 
         # Create listbox for playlists
         self.collections_listbox = tk.Listbox(self.collections_frame, width=50)
@@ -126,6 +132,9 @@ class MediaPlayer:
 
         self.save_playlist_button = ttk.Button(collection_buttons_frame, text="Save", command=self.save_playlist, takefocus=False)
         self.save_playlist_button.grid(row=0, column=1, padx=5)
+
+        self.remove_playlist_button = ttk.Button(collection_buttons_frame, text="Remove", command=self.remove_playlist, takefocus=False)
+        self.remove_playlist_button.grid(row=0, column=2, padx=5)
 
         # Load existing playlists
         self.load_playlists()
@@ -539,6 +548,11 @@ class MediaPlayer:
     def remove_song(self, event=None):
         selected_index = self.playlist.curselection()[0]
         self.playlist.delete(selected_index)
+
+    def remove_playlist(self, event=None):
+        if messagebox.askyesno("Delete Playlist", "Are you sure you want to delete this playlist?"):
+            selected_index = self.collections_listbox.curselection()[0]
+            self.collections_listbox.delete(selected_index)
 
     def create_playlist_from_folder(self):
         folder = filedialog.askdirectory()
