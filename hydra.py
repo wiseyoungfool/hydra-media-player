@@ -550,8 +550,9 @@ class MediaPlayer:
 
     def on_closing(self):
         self.save_settings()
-        self.save_playlist("last_playlist", autosave=True)
-        self.save_playlist(self.current_playlist)
+        if self.playlist.size()>0:
+            self.save_playlist("last_playlist", autosave=True)
+            self.save_playlist(self.current_playlist)
         self.window.destroy()
 
     def on_media_changed(self, event=None):
